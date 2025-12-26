@@ -27,6 +27,59 @@ from models import (
 from utils import format_exception, truncate_text
 
 
+# ==================== Helper Functions ====================
+
+def rich_text(
+    content: str,
+    bold: bool = False,
+    italic: bool = False,
+    color: str = None,
+    link: str = None
+) -> Dict[str, Any]:
+    """
+    创建Notion rich_text对象
+    
+    Args:
+        content: 文本内容
+        bold: 是否加粗
+        italic: 是否斜体
+        color: 颜色
+        link: 链接URL
+        
+    Returns:
+        Notion rich_text对象
+    
+    注意: annotations 必须与 text 同级，不能放在 text 内部
+    """
+    text_obj = {"content": content}
+    if link:
+        text_obj["link"] = {"url": link}
+    
+    result = {
+        "type": "text",
+        "text": text_obj
+    }
+    
+    # 只在需要时添加annotations
+    annotations = {}
+    if bold:
+        annotations["bold"] = True
+    if italic:
+        annotations["italic"] = True
+    if color:
+        annotations["color"] = color
+    
+    if annotations:
+        result["annotations"] = annotations
+    
+    return result
+
+
+def simple_text(content: str) -> Dict[str, Any]:
+    """简单文本，无格式"""
+    return {"type": "text", "text": {"content": content}}
+
+
 class NotionPaperClient:
     """
     Notion论文管理客户端
@@ -59,46 +112,173 @@ class NotionPaperClient:
         
         self.client = AsyncClient(auth=self.token)
         
+        # 数据库schema缓存
+        self._db_schema: Dict[str, Any] = {}
+        self._title_property: str = "Name"  # 默认标题属性名
+        
         # 统计
         self.created_count = 0
         self.updated_count = 0
         self.error_count = 0
     
     async def check_connection(self) -> bool:
-        """检查连接"""
+        """检查连接并获取数据库schema"""
         try:
-            await self.client.databases.retrieve(database_id=self.database_id)
+            db_info = await self.client.databases.retrieve(database_id=self.database_id)
+            
+            # 解析数据库属性
+            self._db_schema = {}
+            for prop_name, prop_info in db_info.get("properties", {}).items():
+                prop_type = prop_info.get("type")
+                self._db_schema[prop_name] = prop_type
+                
+                # 找到title属性
+                if prop_type == "title":
+                    self._title_property = prop_name
+            
             logger.info(f"Notion连接成功: {self.database_id[:8]}...")
+            logger.info(f"数据库标题属性: {self._title_property}")
+            logger.info(f"可用属性: {list(self._db_schema.keys())}")
+            
+            # 自动创建缺失属性
+            await self._auto_create_missing_properties()
+            
             return True
         except Exception:
             error_message = format_exception()
             logger.error(f"Notion连接失败: {error_message}")
             return False
     
+    async def _auto_create_missing_properties(self):
+        """自动创建缺失的推荐属性"""
+        # 定义需要的属性及其配置
+        required_properties = {
+            "Paper ID": {"rich_text": {}},
+            "Authors": {"rich_text": {}},
+            "Category": {"select": {"options": [
+                {"name": "Language Models", "color": "blue"},
+                {"name": "Computer Vision", "color": "green"},
+                {"name": "Multimodal", "color": "purple"},
+                {"name": "Reinforcement Learning", "color": "orange"},
+                {"name": "Generative Models", "color": "pink"},
+                {"name": "NLP", "color": "yellow"},
+                {"name": "Speech", "color": "red"},
+                {"name": "Robotics", "color": "gray"},
+                {"name": "Graph Neural Networks", "color": "brown"},
+                {"name": "Optimization", "color": "default"},
+                {"name": "Other", "color": "default"},
+            ]}},
+            "Keywords": {"multi_select": {"options": []}},
+            "Labels": {"multi_select": {"options": []}},
+            "Upvotes": {"number": {"format": "number"}},
+            "Organization": {"rich_text": {}},
+            "Month": {"rich_text": {}},
+            "arXiv URL": {"url": {}},
+            "HuggingFace URL": {"url": {}},
+        }
+        
+        # 找出缺失的属性
+        missing = {
+            name: config 
+            for name, config in required_properties.items() 
+            if name not in self._db_schema
+        }
+        
+        if not missing:
+            logger.info("✅ 数据库schema完整")
+            return
+        
+        logger.info(f"🔧 自动创建 {len(missing)} 个缺失属性: {list(missing.keys())}")
+        
+        try:
+            # 使用 databases.update API 添加属性
+            await self.client.databases.update(
+                database_id=self.database_id,
+                properties=missing
+            )
+            logger.info(f"✅ 成功创建属性: {list(missing.keys())}")
+            
+            # 更新本地schema缓存
+            for name, config in missing.items():
+                prop_type = list(config.keys())[0]  # 获取属性类型
+                self._db_schema[name] = prop_type
+                
+        except Exception:
+            error_message = format_exception()
+            logger.warning(f"⚠️ 自动创建属性失败: {error_message}")
+            logger.warning("可能原因: Integration没有数据库编辑权限")
+            self._print_manual_setup_guide(missing)
+    
+    def _print_manual_setup_guide(self, missing: Dict[str, Any]):
+        """打印手动设置指南"""
+        type_names = {
+            "rich_text": "Text/文本",
+            "select": "Select/单选",
+            "multi_select": "Multi-select/多选",
+            "number": "Number/数字",
+            "url": "URL/链接",
+        }
+        
+        lines = ["请在Notion中手动添加以下属性:"]
+        for name, config in missing.items():
+            prop_type = list(config.keys())[0]
+            type_name = type_names.get(prop_type, prop_type)
+            lines.append(f"  - {name} ({type_name})")
+        
+        lines.extend([
+            "",
+            "操作步骤:",
+            "1. 打开您的Notion数据库",
+            "2. 点击表头右侧的 '+' 添加新属性", 
+            "3. 输入属性名称，选择属性类型",
+            "4. 重复以上步骤添加所有属性",
+        ])
+        
+        logger.info("\n".join(lines))
+    
+    def _check_recommended_properties(self):
+        """检查推荐的属性是否存在（已废弃，使用_auto_create_missing_properties）"""
+        pass
+    
+    def _has_property(self, name: str, expected_type: str = None) -> bool:
+        """检查属性是否存在且类型匹配"""
+        if name not in self._db_schema:
+            return False
+        if expected_type and self._db_schema[name] != expected_type:
+            return False
+        return True
+    
     # ==================== 数据库操作 ====================
     
     def _build_database_properties(self, paper: FullPaper) -> Dict[str, Any]:
-        """构建数据库属性"""
-        properties = {
-            "Title": {
-                "title": [{"text": {"content": truncate_text(paper.title, 100)}}]
-            },
-            "Paper ID": {
-                "rich_text": [{"text": {"content": paper.paper_id}}]
-            },
-            "Authors": {
-                "rich_text": [{"text": {"content": ", ".join(paper.authors[:5])}}]
-            },
+        """构建数据库属性（只使用存在的属性）"""
+        properties = {}
+        
+        # 标题（必须）- 使用检测到的标题属性名
+        properties[self._title_property] = {
+            "title": [{"text": {"content": truncate_text(paper.title, 100)}}]
         }
         
+        # Paper ID
+        if self._has_property("Paper ID", "rich_text"):
+            properties["Paper ID"] = {
+                "rich_text": [{"text": {"content": paper.paper_id}}]
+            }
+        
+        # Authors
+        if self._has_property("Authors", "rich_text") and paper.authors:
+            properties["Authors"] = {
+                "rich_text": [{"text": {"content": ", ".join(paper.authors[:5])}}]
+            }
+        
         # 分类
-        if paper.classification:
+        if self._has_property("Category", "select") and paper.classification:
             properties["Category"] = {
                 "select": {"name": paper.classification.category_name}
             }
         
         # 关键词
-        if paper.keywords and paper.keywords.keywords:
+        if self._has_property("Keywords", "multi_select") and paper.keywords and paper.keywords.keywords:
             properties["Keywords"] = {
                 "multi_select": [
                     {"name": kw[:100]} for kw in paper.keywords.keywords[:5]
@@ -106,37 +286,42 @@ class NotionPaperClient:
             }
         
         # 标签
-        if paper.labels and paper.labels.labels:
+        if self._has_property("Labels", "multi_select") and paper.labels and paper.labels.labels:
             properties["Labels"] = {
                 "multi_select": [
                     {"name": label[:100]} for label in paper.labels.labels[:5]
                 ]
             }
         
-        # 投票数
+        # HF元数据相关属性
         if paper.hf_metadata:
-            properties["Upvotes"] = {
-                "number": paper.hf_metadata.metrics.upvotes
-            }
+            # 投票数
+            if self._has_property("Upvotes", "number"):
+                properties["Upvotes"] = {
+                    "number": paper.hf_metadata.metrics.upvotes
+                }
             
             # 组织
-            if paper.hf_metadata.organization:
+            if self._has_property("Organization", "rich_text") and paper.hf_metadata.organization:
                 properties["Organization"] = {
                     "rich_text": [{"text": {"content": paper.hf_metadata.organization.name}}]
                 }
             
             # 月份
-            properties["Month"] = {
-                "rich_text": [{"text": {"content": paper.hf_metadata.month}}]
-            }
+            if self._has_property("Month", "rich_text"):
+                properties["Month"] = {
+                    "rich_text": [{"text": {"content": paper.hf_metadata.month}}]
+                }
         
         # 链接
-        properties["arXiv URL"] = {
-            "url": f"https://arxiv.org/abs/{paper.paper_id}"
-        }
-        properties["HuggingFace URL"] = {
-            "url": f"https://huggingface.co/papers/{paper.paper_id}"
-        }
+        if self._has_property("arXiv URL", "url"):
+            properties["arXiv URL"] = {
+                "url": f"https://arxiv.org/abs/{paper.paper_id}"
+            }
+        if self._has_property("HuggingFace URL", "url"):
+            properties["HuggingFace URL"] = {
+                "url": f"https://huggingface.co/papers/{paper.paper_id}"
+            }
         
         return properties
     
@@ -171,8 +356,15 @@ class NotionPaperClient:
                 "type": "paragraph",
                 "paragraph": {
                     "rich_text": [
-                        {"text": {"content": "👥 作者: ", "annotations": {"bold": True}}},
-                        {"text": {"content": ", ".join(paper.authors[:10])}}
+                        {
+                            "type": "text",
+                            "text": {"content": "👥 作者: "},
+                            "annotations": {"bold": True}
+                        },
+                        {
+                            "type": "text",
+                            "text": {"content": ", ".join(paper.authors[:10])}
+                        }
                     ]
                 }
             })
@@ -184,8 +376,15 @@ class NotionPaperClient:
                 "type": "paragraph",
                 "paragraph": {
                     "rich_text": [
-                        {"text": {"content": "🏷️ 分类: ", "annotations": {"bold": True}}},
-                        {"text": {"content": f"{paper.classification.category_name} ({paper.classification.category_name_zh})"}}
+                        {
+                            "type": "text",
+                            "text": {"content": "🏷️ 分类: "},
+                            "annotations": {"bold": True}
+                        },
+                        {
+                            "type": "text",
+                            "text": {"content": f"{paper.classification.category_name} ({paper.classification.category_name_zh})"}
+                        }
                     ]
                 }
             })
@@ -196,8 +395,15 @@ class NotionPaperClient:
                 "type": "paragraph",
                 "paragraph": {
                     "rich_text": [
-                        {"text": {"content": "🔑 关键词: ", "annotations": {"bold": True}}},
-                        {"text": {"content": ", ".join(paper.keywords.keywords)}}
+                        {
+                            "type": "text",
+                            "text": {"content": "🔑 关键词: "},
+                            "annotations": {"bold": True}
+                        },
+                        {
+                            "type": "text",
+                            "text": {"content": ", ".join(paper.keywords.keywords)}
+                        }
                     ]
                 }
             })
@@ -208,8 +414,15 @@ class NotionPaperClient:
                 "type": "paragraph",
                 "paragraph": {
                     "rich_text": [
-                        {"text": {"content": "🏷️ 标签: ", "annotations": {"bold": True}}},
-                        {"text": {"content": ", ".join(paper.labels.labels)}}
+                        {
+                            "type": "text",
+                            "text": {"content": "🏷️ 标签: "},
+                            "annotations": {"bold": True}
+                        },
+                        {
+                            "type": "text",
+                            "text": {"content": ", ".join(paper.labels.labels)}
+                        }
                     ]
                 }
             })
@@ -220,14 +433,39 @@ class NotionPaperClient:
             "type": "paragraph",
             "paragraph": {
                 "rich_text": [
-                    {"text": {"content": "🔗 链接: ", "annotations": {"bold": True}}},
-                    {"text": {"content": "arXiv", "link": {"url": f"https://arxiv.org/abs/{paper.paper_id}"}}},
-                    {"text": {"content": " | "}},
-                    {"text": {"content": "PDF", "link": {"url": f"https://arxiv.org/pdf/{paper.paper_id}.pdf"}}},
-                    {"text": {"content": " | "}},
-                    {"text": {"content": "ar5iv", "link": {"url": f"https://ar5iv.labs.arxiv.org/html/{paper.paper_id}"}}},
-                    {"text": {"content": " | "}},
-                    {"text": {"content": "HuggingFace", "link": {"url": f"https://huggingface.co/papers/{paper.paper_id}"}}},
+                    {
+                        "type": "text",
+                        "text": {"content": "🔗 链接: "},
+                        "annotations": {"bold": True}
+                    },
+                    {
+                        "type": "text",
+                        "text": {"content": "arXiv", "link": {"url": f"https://arxiv.org/abs/{paper.paper_id}"}}
+                    },
+                    {
+                        "type": "text",
+                        "text": {"content": " | "}
+                    },
+                    {
+                        "type": "text",
+                        "text": {"content": "PDF", "link": {"url": f"https://arxiv.org/pdf/{paper.paper_id}.pdf"}}
+                    },
+                    {
+                        "type": "text",
+                        "text": {"content": " | "}
+                    },
+                    {
+                        "type": "text",
+                        "text": {"content": "ar5iv", "link": {"url": f"https://ar5iv.labs.arxiv.org/html/{paper.paper_id}"}}
+                    },
+                    {
+                        "type": "text",
+                        "text": {"content": " | "}
+                    },
+                    {
+                        "type": "text",
+                        "text": {"content": "HuggingFace", "link": {"url": f"https://huggingface.co/papers/{paper.paper_id}"}}
+                    },
                 ]
             }
         })
@@ -306,8 +544,8 @@ class NotionPaperClient:
                     "type": "toggle",
                     "toggle": {
                         "rich_text": [
-                            {"text": {"content": f"{importance_emoji} "}},
-                            {"text": {"content": truncate_text(comment.paragraph_text, 80)}}
+                            {"type": "text", "text": {"content": f"{importance_emoji} "}},
+                            {"type": "text", "text": {"content": truncate_text(comment.paragraph_text, 80)}}
                         ],
                         "children": [
                             # 要点
@@ -316,8 +554,15 @@ class NotionPaperClient:
                                 "type": "bulleted_list_item",
                                 "bulleted_list_item": {
                                     "rich_text": [
-                                        {"text": {"content": "要点: ", "annotations": {"bold": True}}},
-                                        {"text": {"content": " | ".join(comment.key_points)}}
+                                        {
+                                            "type": "text",
+                                            "text": {"content": "要点: "},
+                                            "annotations": {"bold": True}
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": {"content": " | ".join(comment.key_points)}
+                                        }
                                     ]
                                 }
                             },
@@ -327,8 +572,15 @@ class NotionPaperClient:
                                 "type": "bulleted_list_item",
                                 "bulleted_list_item": {
                                     "rich_text": [
-                                        {"text": {"content": "笔记: ", "annotations": {"bold": True}}},
-                                        {"text": {"content": comment.reading_notes}}
+                                        {
+                                            "type": "text",
+                                            "text": {"content": "笔记: "},
+                                            "annotations": {"bold": True}
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": {"content": comment.reading_notes}
+                                        }
                                     ]
                                 }
                             }
@@ -392,7 +644,11 @@ class NotionPaperClient:
                             "object": "block",
                             "type": "paragraph",
                             "paragraph": {
-                                "rich_text": [{"text": {"content": f"Figure {i+1}: {truncate_text(fig.caption, 200)}", "annotations": {"italic": True}}}]
+                                "rich_text": [{
+                                    "type": "text",
+                                    "text": {"content": f"Figure {i+1}: {truncate_text(fig.caption, 200)}"},
+                                    "annotations": {"italic": True}
+                                }]
                             }
                         })
         
@@ -403,7 +659,11 @@ class NotionPaperClient:
             "type": "paragraph",
             "paragraph": {
                 "rich_text": [
-                    {"text": {"content": f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", "annotations": {"italic": True, "color": "gray"}}}
+                    {
+                        "type": "text",
+                        "text": {"content": f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"},
+                        "annotations": {"italic": True, "color": "gray"}
+                    }
                 ]
             }
         })
@@ -421,6 +681,10 @@ class NotionPaperClient:
             页面ID或None
         """
         try:
+            # 确保已加载数据库schema
+            if not self._db_schema:
+                await self.check_connection()
+            
             properties = self._build_database_properties(paper)
             blocks = self._build_page_content(paper)
             
@@ -456,13 +720,24 @@ class NotionPaperClient:
             页面ID或None
         """
         try:
-            response = await self.client.databases.query(
-                database_id=self.database_id,
-                filter={
-                    "property": "Paper ID",
-                    "rich_text": {"equals": paper_id}
-                }
-            )
+            # 如果有Paper ID属性，按Paper ID查找
+            if self._has_property("Paper ID", "rich_text"):
+                response = await self.client.databases.query(
+                    database_id=self.database_id,
+                    filter={
+                        "property": "Paper ID",
+                        "rich_text": {"equals": paper_id}
+                    }
+                )
+            else:
+                # 否则按标题查找（可能不准确，但是兜底方案）
+                response = await self.client.databases.query(
+                    database_id=self.database_id,
+                    filter={
+                        "property": self._title_property,
+                        "title": {"contains": paper_id}
+                    }
+                )
             
             if response["results"]:
                 return response["results"][0]["id"]
@@ -517,6 +792,10 @@ class NotionPaperClient:
         Returns:
             页面ID或None
         """
+        # 确保已加载数据库schema
+        if not self._db_schema:
+            await self.check_connection()
+        
         # 检查是否存在
         existing_id = await self.find_existing_page(paper.paper_id)
         
@@ -591,13 +870,16 @@ class NotionPaperClient:
 
 async def setup_database_schema(client: NotionPaperClient) -> bool:
     """
-    设置数据库schema（需要手动在Notion中创建）
+    设置数据库schema（自动创建缺失属性）
     
-    数据库应包含以下属性:
-    - Title (title): 论文标题
+    调用 check_connection 会自动创建缺失属性。
+    此函数提供额外的验证。
+    
+    数据库将包含以下属性:
+    - Title (title): 论文标题 (自动存在)
     - Paper ID (rich_text): arXiv ID
     - Authors (rich_text): 作者
-    - Category (select): 分类
+    - Category (select): 分类（预设11个类别）
     - Keywords (multi_select): 关键词
     - Labels (multi_select): 标签
     - Upvotes (number): 点赞数
@@ -606,20 +888,22 @@ async def setup_database_schema(client: NotionPaperClient) -> bool:
     - arXiv URL (url): arXiv链接
     - HuggingFace URL (url): HF链接
     """
-    logger.info("""
-请确保Notion数据库包含以下属性:
-- Title (title): 论文标题
-- Paper ID (rich_text): arXiv ID  
-- Authors (rich_text): 作者
-- Category (select): 分类
-- Keywords (multi_select): 关键词
-- Labels (multi_select): 标签
-- Upvotes (number): 点赞数
-- Organization (rich_text): 组织
-- Month (rich_text): 月份
-- arXiv URL (url): arXiv链接
-- HuggingFace URL (url): HF链接
-    """)
+    # check_connection 会自动创建缺失属性
+    if not await client.check_connection():
+        return False
+    
+    # 验证所有属性都已创建
+    required = ["Paper ID", "Authors", "Category", "Keywords", "Labels", 
+                "Upvotes", "Organization", "Month", "arXiv URL", "HuggingFace URL"]
+    
+    missing = [p for p in required if p not in client._db_schema]
+    
+    if missing:
+        logger.warning(f"以下属性未能自动创建: {missing}")
+        logger.warning("请手动在Notion中添加这些属性")
+        return False
+    
+    logger.info("✅ 数据库schema设置完成")
     return True
 
 
@@ -642,9 +926,12 @@ async def main():
     
     client = NotionPaperClient()
     
-    # 测试连接
+    # 测试连接并设置schema
     if not await client.check_connection():
         return
+    
+    # 尝试自动创建缺失属性
+    await setup_database_schema(client)
     
     # 创建测试论文
     from models import FullPaper, HFPaper, PaperMetrics, ClassificationResult, KeywordsResult
