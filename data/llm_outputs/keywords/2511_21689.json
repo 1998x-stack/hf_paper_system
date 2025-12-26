@@ -1,0 +1,24 @@
+{
+  "paper_id": "2511.21689",
+  "keywords": [
+    "ToolOrchestra",
+    "model",
+    "orchestration",
+    "efficient model",
+    "agentic tasks",
+    "orchestrators",
+    "complex problems",
+    "intelligence"
+  ],
+  "keywords_zh": [
+    "工具综合体",
+    "模型",
+    "协调器",
+    "高效模型",
+    "复杂任务",
+    "智能体",
+    "协同工作"
+  ],
+  "raw_response": "{\n  \"keywords\": [\n    \"ToolOrchestra\",\n    \"model\",\n    \"orchestration\",\n    \"efficient model\",\n    \"agentic tasks\",\n    \"orchestrators\",\n    \"complex problems\",\n    \"intelligence\"\n  ],\n  \"keywords_zh\": [\n    \"工具综合体\",\n    \"模型\",\n    \"协调器\",\n    \"高效模型\",\n    \"复杂任务\",\n    \"智能体\",\n    \"协同工作\"\n  ]\n}",
+  "generated_at": "2025-12-26 18:18:10.901922"
+}

@@ -1,0 +1,29 @@
+{
+  "paper_id": "2511.20785",
+  "keywords": [
+    "LongVT",
+    "Native Tool Calling",
+    "Multimodal",
+    "Agentic Framework",
+    "Chain-of-Thought",
+    "Long-form videos",
+    "Hallucinations",
+    "End-to-end",
+    "Multimodal Ch",
+    "Thinking with Long Videos"
+  ],
+  "keywords_zh": [
+    "长视频框架",
+    "长视频",
+    "多模态",
+    "多模态处理",
+    "长视频推理",
+    "多模态模型",
+    "多模态视频",
+    "多模态推理",
+    "多模态能力",
+    "长视频思考"
+  ],
+  "raw_response": "{\n  \"keywords\": [\n    \"LongVT\",\n    \"Native Tool Calling\",\n    \"Multimodal\",\n    \"Agentic Framework\",\n    \"Chain-of-Thought\",\n    \"Long-form videos\",\n    \"Hallucinations\",\n    \"End-to-end\",\n    \"Multimodal Ch\",\n    \"Thinking with Long Videos\"\n  ],\n  \"keywords_zh\": [\n    \"长视频框架\",\n    \"长视频\",\n    \"多模态\",\n    \"多模态处理\",\n    \"长视频推理\",\n    \"多模态模型\",\n    \"多模态视频\",\n    \"多模态推理\",\n    \"多模态能力\",\n    \"长视频思考\"\n  ]\n}",
+  "generated_at": "2025-12-26 16:45:54.218936"
+}

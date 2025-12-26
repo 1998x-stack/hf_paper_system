@@ -1,0 +1,230 @@
+{
+  "paper_id": "2511.22570",
+  "title": "DeepSeekMath-V2: Towards Self-Verifiable Mathematical Reasoning",
+  "authors": [
+    "Zhihong Shao*",
+    "Yuxiang Luo",
+    "Chengda Lu*†",
+    "Z.Z. Ren* Jiewen Hu",
+    "Tian Ye",
+    "Zhibin Gou",
+    "Shirong Ma",
+    "Xiaokang Zhang DeepSeek-AI zhihongshao@deepseek.com https://github.com/deepseek-ai/DeepSeek-Math-V2"
+  ],
+  "affiliations": [],
+  "abstract": "Large language models have made significant progress in mathematical reasoning, which serves as an important testbed for AI and could impact scientific research if further advanced. By scaling reasoning with reinforcement learning that rewards correct final answers, LLMs have improved from poor performance to saturating quantitative reasoning competitions like AIME and HMMT in one year. However, this approach faces fundamental limitations. Pursuing higher final answer accuracy doesn’t address a key issue: correct answers don’t guarantee correct reasoning. Moreover, many mathematical tasks like theorem proving require rigorous step-by-step derivation rather than numerical answers, making final answer rewards inapplicable. To push the limits of deep reasoning, we believe it is necessary to verify the comprehensiveness and rigor of mathematical reasoning. Self-verification is particularly important for scaling test-time compute, especially for open problems without known solutions. Towards self-verifiable mathematical reasoning, we investigate how to train an accurate and faithful LLM-based verifier for theorem proving. We then train a proof generator using the verifier as the reward model, and incentivize the generator to identify and resolve as many issues as possible in their own proofs before finalizing them. To maintain the generation-verification gap as the generator becomes stronger, we propose to scale verification compute to automatically label new hard-to-verify proofs, creating training data to further improve the verifier. Our resulting model, DeepSeekMath-V2, demonstrates strong theorem-proving capabilities, achieving gold-level scores on IMO 2025 and CMO 2024 and a near-perfect 118/120 on Putnam 2024 with scaled test-time compute. While much work remains, these results suggest that self-verifiable mathematical reasoning is a feasible research direction that may help develop more capable mathematical AI systems.",
+  "sections": [
+    {
+      "title": "1 Introduction",
+      "level": 2,
+      "paragraphs": [
+        "The conventional approach to reinforcement learning (RL) for mathematical reasoning involves rewarding large language models (LLMs) based on whether their predicted final answers to quantitative reasoning problems match ground-truth answers (deepseek-r1). This methodology suffices to allow frontier LLMs to saturate mathematical competitions that primarily evaluate final answers, such as AIME and HMMT. However, this reward mechanism has two fundamental limitations. First, it serves as an unreliable proxy for reasoning correctness – a model can arrive at the correct answer through flawed logic or fortunate errors. Second, it is inapplicable to theorem proving tasks, where problems may not require producing numerical final answers and rigorous derivation is the primary objective.",
+        "Consequently, LLMs trained on quantitative reasoning problems with such final answer reward still frequently produce mathematically invalid or logically inconsistent natural-language proofs. Moreover, this training approach does not naturally develop the models’ ability to verify proof validity – they exhibit high false-positive rates, often claiming incorrect proofs are valid even when they contain obvious logical flaws.",
+        "The lack of a generation-verification gap in natural-language theorem proving hinders further improvement. To address this, we propose developing proof verification capabilities in LLMs. Our approach is motivated by several key observations:",
+        "Humans can identify issues in proofs even without reference solutions – a crucial ability when tackling open problems.",
+        "A proof is more likely to be valid when no issues can be identified despite scaled verification efforts.",
+        "The efforts required to identify valid issues can serve as a proxy for proof quality, which can be exploited to optimize proof generation.",
+        "We believe that LLMs can be trained to identify proof issues without reference solutions. Such a verifier would enable an iterative improvement cycle: (1) using verification feedback to optimize proof generation, (2) scaling verification compute to auto-label hard-to-verify new proofs, thereby creating the training data to improve the verifier itself, and (3) using this enhanced verifier to further optimize proof generation. Moreover, a reliable proof verifier enables us to teach proof generators to evaluate proofs as the verifier does. This allows a proof generator to iteratively refine its proofs until it can no longer identify or resolve any issues. In essence, we make the model explicitly aware of its reward function and enable it to maximize this reward through deliberate reasoning rather than blind trial-and-error.",
+        "Built on DeepSeek-V3.2-Exp-Base (deepseekv32), we developed DeepSeekMath-V2, a large language model optimized for natural-language theorem proving that demonstrates self-verifiable mathematical reasoning. Our model can assess and iteratively improve its own proofs, achieving gold-level performance in premier high-school mathematics competitions including IMO 2025 and CMO 2024. On the Putnam 2024 undergraduate competition, it scored 118/120, exceeding the highest score of 90 111https://kskedlaya.org/putnam-archive/putnam2024stats.html obtained by human participants."
+      ],
+      "subsections": []
+    },
+    {
+      "title": "2 Method",
+      "level": 2,
+      "paragraphs": [],
+      "subsections": [
+        {
+          "title": "2.1 Proof Verification",
+          "level": 3,
+          "paragraphs": [],
+          "subsections": []
+        },
+        {
+          "title": "2.2 Proof Generation",
+          "level": 3,
+          "paragraphs": [],
+          "subsections": []
+        },
+        {
+          "title": "2.3 Synergy Between Proof Verification and Generation",
+          "level": 3,
+          "paragraphs": [
+            "The proof verifier and generator create a synergistic cycle: the verifier improves the generator, and as the generator improves, it produces new proofs that challenge the verifier’s current capabilities. These challenging cases – where the verifier may fail to identify issues in a single attempt – become valuable training data for enhancing the verifier itself.",
+            "To retrain and improve the verifier, we need labeled correctness data for newly generated proofs. Manual annotation, while straightforward, becomes increasingly time-consuming as problems grow harder and errors become more subtle. To boost annotation efficiency, we generated multiple verifier analyses per proof to surface potential issues for human review.",
+            "From this AI-assisted annotation process, we recognized two facts that make it feasible to push the level of automation a step further:",
+            "Scaling verifier samples increases the probability of catching real issues in flawed proofs.",
+            "Reviewing the verifier’s identified issues is exactly meta-verification, which is easier than identifying issues from scratch. Meta-verification is also more sample-efficient for LLMs to master.",
+            "Building on these observations, we developed the following automated labeling process:",
+            "For each proof, generate nn independent verification analyses",
+            "For analyses reporting issues (scores 0 or 0.5), generate mm meta-verification assessments to validate the identified problems. An analysis is deemed valid if the majority of meta-assessments confirm its findings",
+            "For each proof, we examine analyses that assign the lowest score. If at least kk such analyses are deemed valid, the proof is labeled with that lowest score. If no legitimate issues are identified across all verification attempts, the proof is labeled with 1. Otherwise, the proof is discarded or routed to human experts for labeling",
+            "In our last two training iterations, this fully automated pipeline replaced human annotation entirely. Quality checks confirmed that the automated labels aligned well with expert judgments."
+          ],
+          "subsections": []
+        }
+      ]
+    },
+    {
+      "title": "3 Experiments",
+      "level": 2,
+      "paragraphs": [],
+      "subsections": [
+        {
+          "title": "3.1 Training Settings",
+          "level": 3,
+          "paragraphs": [
+            "We employed Group Relative Policy Optimization (GRPO) (deepseekmath) for reinforcement learning, iteratively optimizing proof verification and generation capabilities as described in Section 2. In each iteration, we first optimized proof verification. The proof generator was then initialized from the verifier checkpoint and optimized for proof generation. Starting from the second iteration, the proof verifier was initialized with a checkpoint that consolidated both verification and generation capabilities from the previous iteration through rejection fine-tuning."
+          ],
+          "subsections": []
+        },
+        {
+          "title": "3.2 Evaluation Benchmarks",
+          "level": 3,
+          "paragraphs": [
+            "We evaluate our final proof generator on the following theorem proving benchmarks:",
+            "In-House CNML-Level Problems 91 theorem-proving problems spanning algebra (13), geometry (24), number theory (19), combinatorics (24), and inequality (11), comparable in difficulty to problems from Chinese National High School Mathematics League (CNML)",
+            "Competition Problems",
+            "IMO 2025 (6 problems): The International Mathematical Olympiad, the premier global mathematics competition for pre-university students",
+            "CMO 2024 (6 problems): The China Mathematical Olympiad, China’s national championship",
+            "Putnam 2024 (12 problems): The William Lowell Putnam Competition, the preeminent mathematics competition for undergraduate students in North America",
+            "ISL 2024 (31 problems): The IMO Shortlist, a collection of problems proposed by participating countries and considered by the Problem Selection Committee for potential inclusion in IMO 2024",
+            "IMO-ProofBench (60 problems): Developed by the DeepMind team behind DeepThink IMO-Gold (deepthinkimo), this benchmark (imobench) is divided into a basic set (30 problems, pre-IMO to IMO-Medium difficulty) and an advanced set (30 challenging problems simulating complete IMO examinations, up to IMO-Hard level)"
+          ],
+          "subsections": []
+        },
+        {
+          "title": "3.3 Evaluation Results",
+          "level": 3,
+          "paragraphs": [],
+          "subsections": []
+        }
+      ]
+    },
+    {
+      "title": "4 Related Work",
+      "level": 2,
+      "paragraphs": [
+        "Reasoning models (o1; deepseek-r1) have saturated quantitative reasoning benchmarks like AIME and HMMT within one year. This rapid advancement is partly attributed to the well-defined evaluation criterion: if we care only about final answers, then quantitative reasoning is easy to verify. However, this final answer metric is inapplicable to theorem proving, which often requires no numerical answers but demands rigorous step-by-step derivation. Informal mathematical proofs have long been considered hard to verify automatically, lacking reliable approaches to assess proof correctness. Recent developments suggest this barrier may be surmountable. Models like Gemini-2.5 Pro already demonstrate a certain level of self-verification capabilities, which can refine their own solutions to improve quality (geminiimo). More significantly, DeepMind’s internal DeepThink variant (deepthinkimo) achieved gold medal performance at IMO 2025 using pure natural language reasoning – serving as an existence proof that LLM-based verification of complex proofs is achievable. Recent research has begun exploring whether reasoning models can evaluate proofs, both with and without reference solutions (opc; imobench), showing promising results. In this work, we open source DeepSeekMath-V2 and our training methodology as concrete steps toward self-verifiable mathematical reasoning, showing how models can learn to verify and improve their own proofs.",
+        "Proof assistants like Lean (lean) and Isabelle (isabelle) offer a reliable approach to verify proofs – proofs must be written in formal language, but once compiled, correctness is guaranteed. AlphaProof (alphaproof; alphageometry; alphageometry2), a system specialized for formal proof search, achieved silver-level performance at IMO 2024 but required intensive computation. While using informal reasoning to guide formal proof generation has been explored extensively (dsp), recent reasoning models have dramatically improved informal reasoning quality, making this guidance far more effective. Systems like DeepSeek-Prover-V2 (deepseekproverv2) and Seed-Prover (seedprover) can now produce substantially more valid formal proofs within the same computational budget, with Seed-Prover solving 5 of 6 problems at IMO 2025. Notably, these results were achieved without specifically optimizing the informal reasoning components for theorem proving tasks. We believe advancing natural language theorem proving will significantly benefit formal reasoning. We hope to contribute toward truly reliable mathematical reasoning systems that leverage both informal insights and formal guarantees to advance mathematical research."
+      ],
+      "subsections": []
+    },
+    {
+      "title": "5 Conclusion",
+      "level": 2,
+      "paragraphs": [
+        "We presented DeepSeekMath-V2, a model capable of both generating and verifying mathematical proofs. By training models to identify issues in their own reasoning and incentivizing them to address these issues before finalizing outputs, we move beyond the limitations of final-answer-based rewards toward self-verifiable mathematical reasoning. Our iterative training process – alternating between improving verification capabilities and using these to enhance generation – creates a sustainable cycle where each component drives the other forward. Our key technical contributions include: (1) training an accurate and faithful LLM-based verifier for mathematical proofs, (2) using meta-verification to largely reduce hallucinated issues and ensure verification quality, (3) incentivizing the proof generator to maximize proof quality through self-verification, and (4) scaling verification compute to automatically label increasingly hard-to-verify proofs to improve the verifier without human annotation. DeepSeekMath-V2 demonstrates strong performance on competition mathematics. With scaled test-time compute, it achieved gold-medal scores in high-school competitions including IMO 2025 and CMO 2024, and a near-perfect score on the undergraduate Putnam 2024 competition. This work establishes that LLMs can develop meaningful self-evaluation abilities for complex reasoning tasks. While significant challenges remain, we hope this research direction contributes to the goal of creating self-verifiable AI systems that can solve research-level mathematics."
+      ],
+      "subsections": []
+    }
+  ],
+  "figures": [
+    {
+      "src": "https://ar5iv.labs.arxiv.org/html/2511.22570/assets/x1.png",
+      "alt": "Refer to caption",
+      "caption": "Figure 1: Average proof scores on CNML-level problems by category and model, as evaluated by our verifier.",
+      "label": "S3.F1"
+    },
+    {
+      "src": "https://ar5iv.labs.arxiv.org/html/2511.22570/assets/x2.png",
+      "alt": "Refer to caption",
+      "caption": "Figure 2: Proof quality improvements as the maximum sequential iterations varies from 1 (no refinement) to 8 (initial generation plus up to 7 refinements based on self verification).",
+      "label": "S3.F2"
+    },
+    {
+      "src": "https://ar5iv.labs.arxiv.org/html/2511.22570/assets/x3.png",
+      "alt": "Refer to caption",
+      "caption": "Figure 3: Expert evaluation results on the Basic and Advanced subsets of IMO-ProofBench. All results are sourced from imobench, with the exception of DeepSeekMath-V2, which was evaluated by our experts following the grading guidelines.",
+      "label": "S3.F3"
+    }
+  ],
+  "tables": [
+    {
+      "caption": "Figure 3: Expert evaluation results on the Basic and Advanced subsets of IMO-ProofBench. All results are sourced from imobench, with the exception of DeepSeekMath-V2, which was evaluated by our experts following the grading guidelines.",
+      "headers": [
+        "Contest",
+        "Problems",
+        "Points"
+      ],
+      "rows": [
+        [
+          "IMO 2025",
+          "P1, P2, P3, P4, P5",
+          "83.3%"
+        ],
+        [
+          "CMO 2024",
+          "P1, P2, P4, P5, P6",
+          "73.8%"
+        ],
+        [
+          "Putnam 2024",
+          "A1 ∼\\sim B4, B5, B6",
+          "98.3%"
+        ]
+      ],
+      "label": null
+    }
+  ],
+  "equations": [
+    {
+      "latex": "R_{\\text{score}}(s_{i}^{\\prime},s_{i})=1-|s_{i}^{\\prime}-s_{i}|",
+      "mathml": "<math alttext=\"R_{\\text{score}}(s_{i}^{\\prime},s_{i})=1-|s_{i}^{\\prime}-s_{i}|\" class=\"ltx_Math\" display=\"block\" id=\"S2.E1.m1\" intent=\":literal\"><semantics><mrow><mrow><msub><mi>R</mi><mtext>score</mtext></msub><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo stretchy=\"false\">(</mo><msubsup><mi>s</mi><mi>i</mi><mo>′</mo></msubsup><mo>,</mo><msub><mi>s</mi><mi>i</mi></msub><mo stretchy=\"false\">)</mo></mrow></mrow><mo>=</mo><mrow><mn>1</mn><mo>−</mo><mrow><mo stretchy=\"false\">|</mo><mrow><msubsup><mi>s</mi><mi>i</mi><mo>′</mo></msubsup><mo>−</mo><msub><mi>s</mi><mi>i</mi></msub></mrow><mo stretchy=\"false\">|</mo></mrow></mrow></mrow><annotation encoding=\"application/x-tex\">R_{\\text{score}}(s_{i}^{\\prime},s_{i})=1-|s_{i}^{\\prime}-s_{i}|</annotation></semantics></math>",
+      "label": "(1)"
+    },
+    {
+      "latex": "R_{\\text{score}}(s_{i}^{\\prime},s_{i})=1-|s_{i}^{\\prime}-s_{i}|",
+      "mathml": "<math alttext=\"R_{\\text{score}}(s_{i}^{\\prime},s_{i})=1-|s_{i}^{\\prime}-s_{i}|\" class=\"ltx_Math\" display=\"block\" id=\"S2.E1.m1\" intent=\":literal\"><semantics><mrow><mrow><msub><mi>R</mi><mtext>score</mtext></msub><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo stretchy=\"false\">(</mo><msubsup><mi>s</mi><mi>i</mi><mo>′</mo></msubsup><mo>,</mo><msub><mi>s</mi><mi>i</mi></msub><mo stretchy=\"false\">)</mo></mrow></mrow><mo>=</mo><mrow><mn>1</mn><mo>−</mo><mrow><mo stretchy=\"false\">|</mo><mrow><msubsup><mi>s</mi><mi>i</mi><mo>′</mo></msubsup><mo>−</mo><msub><mi>s</mi><mi>i</mi></msub></mrow><mo stretchy=\"false\">|</mo></mrow></mrow></mrow><annotation encoding=\"application/x-tex\">R_{\\text{score}}(s_{i}^{\\prime},s_{i})=1-|s_{i}^{\\prime}-s_{i}|</annotation></semantics></math>",
+      "label": "(1)"
+    },
+    {
+      "latex": "\\max_{\\pi_{\\varphi}}\\mathbb{E}_{(X_{i},Y_{i},s_{i})\\sim\\mathcal{D}_{v},(V_{i}^{\\prime},s_{i}^{\\prime})\\sim\\pi_{\\varphi}(\\cdot|X_{i},Y_{i})}\\left[R_{\\text{format}}(V_{i}^{\\prime})\\cdot R_{\\text{score}}(s_{i}^{\\prime},s_{i})\\right]",
+      "mathml": "<math alttext=\"\\max_{\\pi_{\\varphi}}\\mathbb{E}_{(X_{i},Y_{i},s_{i})\\sim\\mathcal{D}_{v},(V_{i}^{\\prime},s_{i}^{\\prime})\\sim\\pi_{\\varphi}(\\cdot|X_{i},Y_{i})}\\left[R_{\\text{format}}(V_{i}^{\\prime})\\cdot R_{\\text{score}}(s_{i}^{\\prime},s_{i})\\right]\" class=\"ltx_math_unparsed\" display=\"block\" id=\"S2.E2.m1\" intent=\":literal\"><semantics><mrow><mrow><munder><mi>max</mi><msub><mi>π</mi><mi>φ</mi></msub></munder><mo lspace=\"0.167em\">⁡</mo><msub><mi>𝔼</mi><mrow><mrow><mo stretchy=\"false\">(</mo><msub><mi>X</mi><mi>i</mi></msub><mo>,</mo><msub><mi>Y</mi><mi>i</mi></msub><mo>,</mo><msub><mi>s</mi><mi>i</mi></msub><mo stretchy=\"false\">)</mo></mrow><mo>∼</mo><msub><mi class=\"ltx_font_mathcaligraphic\">𝒟</mi><mi>v</mi></msub><mo>,</mo><mrow><mo stretchy=\"false\">(</mo><msubsup><mi>V</mi><mi>i</mi><mo>′</mo></msubsup><mo>,</mo><msubsup><mi>s</mi><mi>i</mi><mo>′</mo></msubsup><mo stretchy=\"false\">)</mo></mrow><mo>∼</mo><msub><mi>π</mi><mi>φ</mi></msub><mrow><mo stretchy=\"false\">(</mo><mo lspace=\"0em\" rspace",
+      "label": "(2)"
+    },
+    {
+      "latex": "\\max_{\\pi_{\\varphi}}\\mathbb{E}_{(X_{i},Y_{i},s_{i})\\sim\\mathcal{D}_{v},(V_{i}^{\\prime},s_{i}^{\\prime})\\sim\\pi_{\\varphi}(\\cdot|X_{i},Y_{i})}\\left[R_{\\text{format}}(V_{i}^{\\prime})\\cdot R_{\\text{score}}(s_{i}^{\\prime},s_{i})\\right]",
+      "mathml": "<math alttext=\"\\max_{\\pi_{\\varphi}}\\mathbb{E}_{(X_{i},Y_{i},s_{i})\\sim\\mathcal{D}_{v},(V_{i}^{\\prime},s_{i}^{\\prime})\\sim\\pi_{\\varphi}(\\cdot|X_{i},Y_{i})}\\left[R_{\\text{format}}(V_{i}^{\\prime})\\cdot R_{\\text{score}}(s_{i}^{\\prime},s_{i})\\right]\" class=\"ltx_math_unparsed\" display=\"block\" id=\"S2.E2.m1\" intent=\":literal\"><semantics><mrow><mrow><munder><mi>max</mi><msub><mi>π</mi><mi>φ</mi></msub></munder><mo lspace=\"0.167em\">⁡</mo><msub><mi>𝔼</mi><mrow><mrow><mo stretchy=\"false\">(</mo><msub><mi>X</mi><mi>i</mi></msub><mo>,</mo><msub><mi>Y</mi><mi>i</mi></msub><mo>,</mo><msub><mi>s</mi><mi>i</mi></msub><mo stretchy=\"false\">)</mo></mrow><mo>∼</mo><msub><mi class=\"ltx_font_mathcaligraphic\">𝒟</mi><mi>v</mi></msub><mo>,</mo><mrow><mo stretchy=\"false\">(</mo><msubsup><mi>V</mi><mi>i</mi><mo>′</mo></msubsup><mo>,</mo><msubsup><mi>s</mi><mi>i</mi><mo>′</mo></msubsup><mo stretchy=\"false\">)</mo></mrow><mo>∼</mo><msub><mi>π</mi><mi>φ</mi></msub><mrow><mo stretchy=\"false\">(</mo><mo lspace=\"0em\" rspace",
+      "label": "(2)"
+    },
+    {
+      "latex": "R_{V}=R_{\\text{format}}\\cdot R_{\\text{score}}\\cdot R_{\\text{meta}}",
+      "mathml": "<math alttext=\"R_{V}=R_{\\text{format}}\\cdot R_{\\text{score}}\\cdot R_{\\text{meta}}\" class=\"ltx_Math\" display=\"block\" id=\"S2.E3.m1\" intent=\":literal\"><semantics><mrow><msub><mi>R</mi><mi>V</mi></msub><mo>=</mo><mrow><msub><mi>R</mi><mtext>format</mtext></msub><mo lspace=\"0.222em\" rspace=\"0.222em\">⋅</mo><msub><mi>R</mi><mtext>score</mtext></msub><mo lspace=\"0.222em\" rspace=\"0.222em\">⋅</mo><msub><mi>R</mi><mtext>meta</mtext></msub></mrow></mrow><annotation encoding=\"application/x-tex\">R_{V}=R_{\\text{format}}\\cdot R_{\\text{score}}\\cdot R_{\\text{meta}}</annotation></semantics></math>",
+      "label": "(3)"
+    },
+    {
+      "latex": "R_{V}=R_{\\text{format}}\\cdot R_{\\text{score}}\\cdot R_{\\text{meta}}",
+      "mathml": "<math alttext=\"R_{V}=R_{\\text{format}}\\cdot R_{\\text{score}}\\cdot R_{\\text{meta}}\" class=\"ltx_Math\" display=\"block\" id=\"S2.E3.m1\" intent=\":literal\"><semantics><mrow><msub><mi>R</mi><mi>V</mi></msub><mo>=</mo><mrow><msub><mi>R</mi><mtext>format</mtext></msub><mo lspace=\"0.222em\" rspace=\"0.222em\">⋅</mo><msub><mi>R</mi><mtext>score</mtext></msub><mo lspace=\"0.222em\" rspace=\"0.222em\">⋅</mo><msub><mi>R</mi><mtext>meta</mtext></msub></mrow></mrow><annotation encoding=\"application/x-tex\">R_{V}=R_{\\text{format}}\\cdot R_{\\text{score}}\\cdot R_{\\text{meta}}</annotation></semantics></math>",
+      "label": "(3)"
+    },
+    {
+      "latex": "\\max_{\\pi_{\\theta}}\\mathbb{E}_{X_{i}\\sim\\mathcal{D}_{p},Y_{i}\\sim\\pi_{\\theta}(\\cdot|X_{i})}[R_{Y}]",
+      "mathml": "<math alttext=\"\\max_{\\pi_{\\theta}}\\mathbb{E}_{X_{i}\\sim\\mathcal{D}_{p},Y_{i}\\sim\\pi_{\\theta}(\\cdot|X_{i})}[R_{Y}]\" class=\"ltx_math_unparsed\" display=\"block\" id=\"S2.E4.m1\" intent=\":literal\"><semantics><mrow><mrow><munder><mi>max</mi><msub><mi>π</mi><mi>θ</mi></msub></munder><mo lspace=\"0.167em\">⁡</mo><msub><mi>𝔼</mi><mrow><msub><mi>X</mi><mi>i</mi></msub><mo>∼</mo><msub><mi class=\"ltx_font_mathcaligraphic\">𝒟</mi><mi>p</mi></msub><mo>,</mo><msub><mi>Y</mi><mi>i</mi></msub><mo>∼</mo><msub><mi>π</mi><mi>θ</mi></msub><mrow><mo stretchy=\"false\">(</mo><mo lspace=\"0em\" rspace=\"0em\">⋅</mo><mo fence=\"false\" rspace=\"0.167em\" stretchy=\"false\">|</mo><msub><mi>X</mi><mi>i</mi></msub><mo stretchy=\"false\">)</mo></mrow></mrow></msub></mrow><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo stretchy=\"false\">[</mo><msub><mi>R</mi><mi>Y</mi></msub><mo stretchy=\"false\">]</mo></mrow></mrow><annotation encoding=\"application/x-tex\">\\max_{\\pi_{\\theta}}\\mathbb{E}_{X_{i}\\sim\\mathcal{D}_{p},Y_{i}\\sim\\pi_{\\theta}(\\cdot",
+      "label": "(4)"
+    },
+    {
+      "latex": "\\max_{\\pi_{\\theta}}\\mathbb{E}_{X_{i}\\sim\\mathcal{D}_{p},Y_{i}\\sim\\pi_{\\theta}(\\cdot|X_{i})}[R_{Y}]",
+      "mathml": "<math alttext=\"\\max_{\\pi_{\\theta}}\\mathbb{E}_{X_{i}\\sim\\mathcal{D}_{p},Y_{i}\\sim\\pi_{\\theta}(\\cdot|X_{i})}[R_{Y}]\" class=\"ltx_math_unparsed\" display=\"block\" id=\"S2.E4.m1\" intent=\":literal\"><semantics><mrow><mrow><munder><mi>max</mi><msub><mi>π</mi><mi>θ</mi></msub></munder><mo lspace=\"0.167em\">⁡</mo><msub><mi>𝔼</mi><mrow><msub><mi>X</mi><mi>i</mi></msub><mo>∼</mo><msub><mi class=\"ltx_font_mathcaligraphic\">𝒟</mi><mi>p</mi></msub><mo>,</mo><msub><mi>Y</mi><mi>i</mi></msub><mo>∼</mo><msub><mi>π</mi><mi>θ</mi></msub><mrow><mo stretchy=\"false\">(</mo><mo lspace=\"0em\" rspace=\"0em\">⋅</mo><mo fence=\"false\" rspace=\"0.167em\" stretchy=\"false\">|</mo><msub><mi>X</mi><mi>i</mi></msub><mo stretchy=\"false\">)</mo></mrow></mrow></msub></mrow><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo stretchy=\"false\">[</mo><msub><mi>R</mi><mi>Y</mi></msub><mo stretchy=\"false\">]</mo></mrow></mrow><annotation encoding=\"application/x-tex\">\\max_{\\pi_{\\theta}}\\mathbb{E}_{X_{i}\\sim\\mathcal{D}_{p},Y_{i}\\sim\\pi_{\\theta}(\\cdot",
+      "label": "(4)"
+    },
+    {
+      "latex": "\\displaystyle R",
+      "mathml": "<math alttext=\"\\displaystyle R\" class=\"ltx_Math\" display=\"inline\" id=\"S2.E5.m1\" intent=\":literal\"><semantics><mi>R</mi><annotation encoding=\"application/x-tex\">\\displaystyle R</annotation></semantics></math>",
+      "label": "(5)"
+    },
+    {
+      "latex": "\\displaystyle R",
+      "mathml": "<math alttext=\"\\displaystyle R\" class=\"ltx_Math\" display=\"inline\" id=\"S2.E5.m1\" intent=\":literal\"><semantics><mi>R</mi><annotation encoding=\"application/x-tex\">\\displaystyle R</annotation></semantics></math>",
+      "label": "(5)"
+    },
+    {
+      "latex": "\\displaystyle R_{Z}",
+      "mathml": "<math alttext=\"\\displaystyle R_{Z}\" class=\"ltx_Math\" display=\"inline\" id=\"S2.E6.m1\" intent=\":literal\"><semantics><msub><mi>R</mi><mi>Z</mi></msub><annotation encoding=\"application/x-tex\">\\displaystyle R_{Z}</annotation></semantics></math>",
+      "label": "(6)"
+    }
+  ],
+  "references": [],
+  "full_text": "## 1 Introduction\n\nThe conventional approach to reinforcement learning (RL) for mathematical reasoning involves rewarding large language models (LLMs) based on whether their predicted final answers to quantitative reasoning problems match ground-truth answers (deepseek-r1). This methodology suffices to allow frontier LLMs to saturate mathematical competitions that primarily evaluate final answers, such as AIME and HMMT. However, this reward mechanism has two fundamental limitations. First, it serves as an unreliable proxy for reasoning correctness – a model can arrive at the correct answer through flawed logic or fortunate errors. Second, it is inapplicable to theorem proving tasks, where problems may not require producing numerical final answers and rigorous derivation is the primary objective.\n\nConsequently, LLMs trained on quantitative reasoning problems with such final answer reward still frequently produce mathematically invalid or logically inconsistent natural-language proofs. Moreover, this training approach does not naturally develop the models’ ability to verify proof validity – they exhibit high false-positive rates, often claiming incorrect proofs are valid even when they contain obvious logical flaws.\n\nThe lack of a generation-verification gap in natural-language theorem proving hinders further improvement. To address this, we propose developing proof verification capabilities in LLMs. Our approach is motivated by several key observations:\n\nHumans can identify issues in proofs even without reference solutions – a crucial ability when tackling open problems.\n\nA proof is more likely to be valid when no issues can be identified despite scaled verification efforts.\n\nThe efforts required to identify valid issues can serve as a proxy for proof quality, which can be exploited to optimize proof generation.\n\nWe believe that LLMs can be trained to identify proof issues without reference solutions. Such a verifier would enable an iterative improvement cycle: (1) using verification feedback to optimize proof generation, (2) scaling verification compute to auto-label hard-to-verify new proofs, thereby creating the training data to improve the verifier itself, and (3) using this enhanced verifier to further optimize proof generation. Moreover, a reliable proof verifier enables us to teach proof generators to evaluate proofs as the verifier does. This allows a proof generator to iteratively refine its proofs until it can no longer identify or resolve any issues. In essence, we make the model explicitly aware of its reward function and enable it to maximize this reward through deliberate reasoning rather than blind trial-and-error.\n\nBuilt on DeepSeek-V3.2-Exp-Base (deepseekv32), we developed DeepSeekMath-V2, a large language model optimized for natural-language theorem proving that demonstrates self-verifiable mathematical reasoning. Our model can assess and iteratively improve its own proofs, achieving gold-level performance in premier high-school mathematics competitions including IMO 2025 and CMO 2024. On the Putnam 2024 undergraduate competition, it scored 118/120, exceeding the highest score of 90 111https://kskedlaya.org/putnam-archive/putnam2024stats.html obtained by human participants.\n\n## 2 Method\n\n### 2.1 Proof Verification\n\n### 2.2 Proof Generation\n\n### 2.3 Synergy Between Proof Verification and Generation\n\nThe proof verifier and generator create a synergistic cycle: the verifier improves the generator, and as the generator improves, it produces new proofs that challenge the verifier’s current capabilities. These challenging cases – where the verifier may fail to identify issues in a single attempt – become valuable training data for enhancing the verifier itself.\n\nTo retrain and improve the verifier, we need labeled correctness data for newly generated proofs. Manual annotation, while straightforward, becomes increasingly time-consuming as problems grow harder and errors become more subtle. To boost annotation efficiency, we generated multiple verifier analyses per proof to surface potential issues for human review.\n\nFrom this AI-assisted annotation process, we recognized two facts that make it feasible to push the level of automation a step further:\n\nScaling verifier samples increases the probability of catching real issues in flawed proofs.\n\nReviewing the verifier’s identified issues is exactly meta-verification, which is easier than identifying issues from scratch. Meta-verification is also more sample-efficient for LLMs to master.\n\nBuilding on these observations, we developed the following automated labeling process:\n\nFor each proof, generate nn independent verification analyses\n\nFor analyses reporting issues (scores 0 or 0.5), generate mm meta-verification assessments to validate the identified problems. An analysis is deemed valid if the majority of meta-assessments confirm its findings\n\nFor each proof, we examine analyses that assign the lowest score. If at least kk such analyses are deemed valid, the proof is labeled with that lowest score. If no legitimate issues are identified across all verification attempts, the proof is labeled with 1. Otherwise, the proof is discarded or routed to human experts for labeling\n\nIn our last two training iterations, this fully automated pipeline replaced human annotation entirely. Quality checks confirmed that the automated labels aligned well with expert judgments.\n\n## 3 Experiments\n\n### 3.1 Training Settings\n\nWe employed Group Relative Policy Optimization (GRPO) (deepseekmath) for reinforcement learning, iteratively optimizing proof verification and generation capabilities as described in Section 2. In each iteration, we first optimized proof verification. The proof generator was then initialized from the verifier checkpoint and optimized for proof generation. Starting from the second iteration, the proof verifier was initialized with a checkpoint that consolidated both verification and generation capabilities from the previous iteration through rejection fine-tuning.\n\n### 3.2 Evaluation Benchmarks\n\nWe evaluate our final proof generator on the following theorem proving benchmarks:\n\nIn-House CNML-Level Problems 91 theorem-proving problems spanning algebra (13), geometry (24), number theory (19), combinatorics (24), and inequality (11), comparable in difficulty to problems from Chinese National High School Mathematics League (CNML)\n\nCompetition Problems\n\nIMO 2025 (6 problems): The International Mathematical Olympiad, the premier global mathematics competition for pre-university students\n\nCMO 2024 (6 problems): The China Mathematical Olympiad, China’s national championship\n\nPutnam 2024 (12 problems): The William Lowell Putnam Competition, the preeminent mathematics competition for undergraduate students in North America\n\nISL 2024 (31 problems): The IMO Shortlist, a collection of problems proposed by participating countries and considered by the Problem Selection Committee for potential inclusion in IMO 2024\n\nIMO-ProofBench (60 problems): Developed by the DeepMind team behind DeepThink IMO-Gold (deepthinkimo), this benchmark (imobench) is divided into a basic set (30 problems, pre-IMO to IMO-Medium difficulty) and an advanced set (30 challenging problems simulating complete IMO examinations, up to IMO-Hard level)\n\n### 3.3 Evaluation Results\n\n## 4 Related Work\n\nReasoning models (o1; deepseek-r1) have saturated quantitative reasoning benchmarks like AIME and HMMT within one year. This rapid advancement is partly attributed to the well-defined evaluation criterion: if we care only about final answers, then quantitative reasoning is easy to verify. However, this final answer metric is inapplicable to theorem proving, which often requires no numerical answers but demands rigorous step-by-step derivation. Informal mathematical proofs have long been considered hard to verify automatically, lacking reliable approaches to assess proof correctness. Recent developments suggest this barrier may be surmountable. Models like Gemini-2.5 Pro already demonstrate a certain level of self-verification capabilities, which can refine their own solutions to improve quality (geminiimo). More significantly, DeepMind’s internal DeepThink variant (deepthinkimo) achieved gold medal performance at IMO 2025 using pure natural language reasoning – serving as an existence proof that LLM-based verification of complex proofs is achievable. Recent research has begun exploring whether reasoning models can evaluate proofs, both with and without reference solutions (opc; imobench), showing promising results. In this work, we open source DeepSeekMath-V2 and our training methodology as concrete steps toward self-verifiable mathematical reasoning, showing how models can learn to verify and improve their own proofs.\n\nProof assistants like Lean (lean) and Isabelle (isabelle) offer a reliable approach to verify proofs – proofs must be written in formal language, but once compiled, correctness is guaranteed. AlphaProof (alphaproof; alphageometry; alphageometry2), a system specialized for formal proof search, achieved silver-level performance at IMO 2024 but required intensive computation. While using informal reasoning to guide formal proof generation has been explored extensively (dsp), recent reasoning models have dramatically improved informal reasoning quality, making this guidance far more effective. Systems like DeepSeek-Prover-V2 (deepseekproverv2) and Seed-Prover (seedprover) can now produce substantially more valid formal proofs within the same computational budget, with Seed-Prover solving 5 of 6 problems at IMO 2025. Notably, these results were achieved without specifically optimizing the informal reasoning components for theorem proving tasks. We believe advancing natural language theorem proving will significantly benefit formal reasoning. We hope to contribute toward truly reliable mathematical reasoning systems that leverage both informal insights and formal guarantees to advance mathematical research.\n\n## 5 Conclusion\n\nWe presented DeepSeekMath-V2, a model capable of both generating and verifying mathematical proofs. By training models to identify issues in their own reasoning and incentivizing them to address these issues before finalizing outputs, we move beyond the limitations of final-answer-based rewards toward self-verifiable mathematical reasoning. Our iterative training process – alternating between improving verification capabilities and using these to enhance generation – creates a sustainable cycle where each component drives the other forward. Our key technical contributions include: (1) training an accurate and faithful LLM-based verifier for mathematical proofs, (2) using meta-verification to largely reduce hallucinated issues and ensure verification quality, (3) incentivizing the proof generator to maximize proof quality through self-verification, and (4) scaling verification compute to automatically label increasingly hard-to-verify proofs to improve the verifier without human annotation. DeepSeekMath-V2 demonstrates strong performance on competition mathematics. With scaled test-time compute, it achieved gold-medal scores in high-school competitions including IMO 2025 and CMO 2024, and a near-perfect score on the undergraduate Putnam 2024 competition. This work establishes that LLMs can develop meaningful self-evaluation abilities for complex reasoning tasks. While significant challenges remain, we hope this research direction contributes to the goal of creating self-verifiable AI systems that can solve research-level mathematics.\n",
+  "extracted_at": "2025-12-26 16:40:33.981580"
+}

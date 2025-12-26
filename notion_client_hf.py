@@ -186,28 +186,34 @@ class NotionPaperClient:
         
         if not missing:
             logger.info("✅ 数据库schema完整")
-            return
+            return True
         
         logger.info(f"🔧 自动创建 {len(missing)} 个缺失属性: {list(missing.keys())}")
         
         try:
             # 使用 databases.update API 添加属性
-            await self.client.databases.update(
+            result = await self.client.databases.update(
                 database_id=self.database_id,
                 properties=missing
             )
             logger.info(f"✅ 成功创建属性: {list(missing.keys())}")
             
-            # 更新本地schema缓存
-            for name, config in missing.items():
-                prop_type = list(config.keys())[0]  # 获取属性类型
-                self._db_schema[name] = prop_type
+            # 重新获取数据库schema以确保同步
+            db_info = await self.client.databases.retrieve(database_id=self.database_id)
+            self._db_schema = {}
+            for prop_name, prop_info in db_info.get("properties", {}).items():
+                prop_type = prop_info.get("type")
+                self._db_schema[prop_name] = prop_type
+            
+            logger.info(f"📋 更新后的属性: {list(self._db_schema.keys())}")
+            return True
                 
-        except Exception:
+        except Exception as e:
             error_message = format_exception()
             logger.warning(f"⚠️ 自动创建属性失败: {error_message}")
             logger.warning("可能原因: Integration没有数据库编辑权限")
             self._print_manual_setup_guide(missing)
+            return False
     
     def _print_manual_setup_guide(self, missing: Dict[str, Any]):
         """打印手动设置指南"""
@@ -253,6 +259,10 @@ class NotionPaperClient:
     def _build_database_properties(self, paper: FullPaper) -> Dict[str, Any]:
         """构建数据库属性（只使用存在的属性）"""
         properties = {}
+        
+        # 检查schema是否已加载
+        if not self._db_schema:
+            logger.warning("⚠️ 数据库schema未加载，只使用标题属性")
         
         # 标题（必须）- 使用检测到的标题属性名
         properties[self._title_property] = {
@@ -322,6 +332,8 @@ class NotionPaperClient:
             properties["HuggingFace URL"] = {
                 "url": f"https://huggingface.co/papers/{paper.paper_id}"
             }
+        
+        logger.debug(f"📝 使用的属性: {list(properties.keys())}")
         
         return properties
     
@@ -683,10 +695,18 @@ class NotionPaperClient:
         try:
             # 确保已加载数据库schema
             if not self._db_schema:
-                await self.check_connection()
+                logger.info("📡 首次创建，加载数据库schema...")
+                success = await self.check_connection()
+                if not success:
+                    logger.error("❌ 无法加载数据库schema")
+                    return None
+            
+            logger.info(f"📋 当前可用属性: {list(self._db_schema.keys())}")
             
             properties = self._build_database_properties(paper)
             blocks = self._build_page_content(paper)
+            
+            logger.info(f"📝 将要使用的属性: {list(properties.keys())}")
             
             # Notion API限制每次最多100个blocks
             blocks = blocks[:100]
@@ -699,13 +719,13 @@ class NotionPaperClient:
             
             page_id = response["id"]
             self.created_count += 1
-            logger.info(f"创建页面成功: {paper.paper_id} -> {page_id[:8]}...")
+            logger.info(f"✅ 创建页面成功: {paper.paper_id} -> {page_id[:8]}...")
             
             return page_id
             
         except Exception:
             error_message = format_exception()
-            logger.error(f"创建页面失败 {paper.paper_id}: {error_message}")
+            logger.error(f"❌ 创建页面失败 {paper.paper_id}: {error_message}")
             self.error_count += 1
             return None
     

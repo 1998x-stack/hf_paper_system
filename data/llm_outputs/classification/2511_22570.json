@@ -1,0 +1,10 @@
+{
+  "paper_id": "2511.22570",
+  "category": "reinforcement_learning",
+  "category_name": "Reinforcement Learning",
+  "category_name_zh": "强化学习",
+  "confidence": 0.0,
+  "reasoning": "The paper discusses the application of reinforcement learning to enhance mathematical reasoning in large language models, focusing on improving performance in competitive settings. This directly relates to the field of reinforcement learning, as it addresses the limitations of current models through this technique.",
+  "raw_response": "{\n  \"category\": \"reinforcement_learning\",\n  \"confidence\": 0.0,\n  \"reasoning\": \"The paper discusses the application of reinforcement learning to enhance mathematical reasoning in large language models, focusing on improving performance in competitive settings. This directly relates to the field of reinforcement learning, as it addresses the limitations of current models through this technique.\"\n}",
+  "generated_at": "2025-12-26 18:22:47.988981"
+}

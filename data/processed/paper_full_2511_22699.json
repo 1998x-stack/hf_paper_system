@@ -1,0 +1,676 @@
+{
+  "paper_id": "2511.22699",
+  "title": "Z-Image: An Efficient Image Generation Foundation Model with Single-Stream Diffusion Transformer",
+  "authors": [
+    "Z-Image Team",
+    "Alibaba Group"
+  ],
+  "abstract": "The landscape of high-performance image generation models is currently dominated by proprietary systems, such as Nano Banana Pro nanopro and Seedream 4.0 seedream2025seedream. Leading open-source alternatives, including Qwen-Image qwenimage, Hunyuan-Image-3.0 cao2025hunyuanimage and FLUX.2 (flux-2-2025), are characterized by massive parameter counts (20B to 80B), making them impractical for inference, and fine-tuning on consumer-grade hardware. To address this gap, we propose Z-Image, an efficient 6B-parameter foundation generative model built upon a Scalable Single-Stream Diffusion Transformer (S3-DiT) architecture that challenges the “scale-at-all-costs\" paradigm. By systematically optimizing the entire model lifecycle – from a curated data infrastructure to a streamlined training curriculum – we complete the full training workflow in just 314K H800 GPU hours (approx. $630K). Our few-step distillation scheme with reward post-training further yields Z-Image-Turbo, offering both sub-second inference latency on an enterprise-grade H800 GPU and compatibility with consumer-grade hardware (<16GB VRAM). Additionally, our omni-pre-training paradigm also enables efficient training of Z-Image-Edit, an editing model with impressive instruction-following capabilities. Both qualitative and quantitative experiments demonstrate that our model achieves performance comparable to or surpassing that of leading competitors across various dimensions. Most notably, Z-Image exhibits exceptional capabilities in photorealistic image generation and bilingual text rendering, delivering results that rival top-tier commercial models, thereby demonstrating that state-of-the-art results are achievable with significantly reduced computational overhead. We publicly release our code, weights, and online demo to foster the development of accessible, budget-friendly, yet state-of-the-art generative models.",
+  "hf_metadata": {
+    "paper_id": "2511.22699",
+    "title": "Z-Image: An Efficient Image Generation Foundation Model with Single-Stream Diffusion Transformer",
+    "url": "https://huggingface.co/papers/2511.22699",
+    "arxiv_url": "https://arxiv.org/abs/2511.22699",
+    "ar5iv_url": "https://ar5iv.labs.arxiv.org/html/2511.22699",
+    "thumbnail": "https://cdn-thumbnails.huggingface.co/social-thumbnails/papers/2511.22699.png",
+    "submitter": "Paper99",
+    "organization": {
+      "name": "Tongyi-MAI",
+      "logo": "https://cdn-uploads.huggingface.co/production/uploads/64379d79fac5ea753f1c10f3/fxHO6QoYjdv9_LTyiUD3g.jpeg",
+      "url": "https://huggingface.co/Tongyi-MAI"
+    },
+    "metrics": {
+      "upvotes": 212,
+      "comments": 5,
+      "downloads": null,
+      "github_stars": null
+    },
+    "has_video": false,
+    "month": "2025-12",
+    "scraped_at": "2025-12-26 08:33:08.435595"
+  },
+  "content": {
+    "paper_id": "2511.22699",
+    "title": "Z-Image: An Efficient Image Generation Foundation Model with Single-Stream Diffusion Transformer",
+    "authors": [
+      "Z-Image Team",
+      "Alibaba Group"
+    ],
+    "affiliations": [],
+    "abstract": "The landscape of high-performance image generation models is currently dominated by proprietary systems, such as Nano Banana Pro nanopro and Seedream 4.0 seedream2025seedream. Leading open-source alternatives, including Qwen-Image qwenimage, Hunyuan-Image-3.0 cao2025hunyuanimage and FLUX.2 (flux-2-2025), are characterized by massive parameter counts (20B to 80B), making them impractical for inference, and fine-tuning on consumer-grade hardware. To address this gap, we propose Z-Image, an efficient 6B-parameter foundation generative model built upon a Scalable Single-Stream Diffusion Transformer (S3-DiT) architecture that challenges the “scale-at-all-costs\" paradigm. By systematically optimizing the entire model lifecycle – from a curated data infrastructure to a streamlined training curriculum – we complete the full training workflow in just 314K H800 GPU hours (approx. $630K). Our few-step distillation scheme with reward post-training further yields Z-Image-Turbo, offering both sub-second inference latency on an enterprise-grade H800 GPU and compatibility with consumer-grade hardware (<16GB VRAM). Additionally, our omni-pre-training paradigm also enables efficient training of Z-Image-Edit, an editing model with impressive instruction-following capabilities. Both qualitative and quantitative experiments demonstrate that our model achieves performance comparable to or surpassing that of leading competitors across various dimensions. Most notably, Z-Image exhibits exceptional capabilities in photorealistic image generation and bilingual text rendering, delivering results that rival top-tier commercial models, thereby demonstrating that state-of-the-art results are achievable with significantly reduced computational overhead. We publicly release our code, weights, and online demo to foster the development of accessible, budget-friendly, yet state-of-the-art generative models.",
+    "sections": [
+      {
+        "title": "1 Introduction",
+        "level": 2,
+        "paragraphs": [
+          "The field of text-to-image (T2I) generation has witnessed remarkable advancements in recent years, evolving from generating rudimentary textures to producing photorealistic imagery with complex semantic adherence podell2023sdxl; esser2024scaling; flux2023; qwenimage; seedream2025seedream; cao2025hunyuanimage; betker2023improving. However, as the capabilities of these models have scaled, their development and accessibility face significant barriers. The current landscape is increasingly characterized by two divergent trends: on one side, state-of-the-art commercial closed-source models – such as Nano Banana Pro nanopro and Seedream 4.0 seedream2025seedream – remain enclosed within “black boxes”, offering high performance but limited transparency or reproducibility. On the other side, open-source models, while fostering democratization, often resort to massive parameter scaling – approaching tens of billions of parameters (e.g., Qwen-Image qwenimage (20B), FLUX.2 (flux-2-2025) (32B) and Hunyuan-Image-3.0 cao2025hunyuanimage (80B) – imposing prohibitive computational costs for both training and inference. In this context, distilling synthetic data from proprietary models has emerged as an appealing shortcut to train high-performing models at lower cost, becoming a prevalent approach for resource-constrained academic research chen2023pixart; gao2024lumin-t2x. However, this strategy risks creating a closed feedback loop that may lead to error accumulation and data homogenization, potentially hindering the emergence of novel visual capabilities beyond those already present in the teacher models.",
+          "In this work, we present Z-Image, a powerful diffusion transformer model that challenges both the “scale-at-all-costs” paradigm and the reliance on synthetic data distillation. We demonstrate that neither approach is necessary to develop a top-tier image generation model. Instead, we introduce the first comprehensive end-to-end solution that systematically optimizes every stage of the model lifecycle – from data curation and architecture design to training strategies and inference acceleration – enabling efficient, low-cost development on purely real-world data without distilling results from other models.",
+          "Most notably, this methodological efficiency allows us to complete the entire training workflow with remarkably low computational overhead. As detailed in Table 1, the complete training pipeline for Z-Image requires only 314K H800 GPU hours, translating to approximately $628K at current market rates (about $2 per GPU hour leadergpu2025pricing). In a landscape where leading models often demand orders of magnitude more resources, this modest investment demonstrates that principled design can effectively rival brute-force scaling.",
+          "This breakthrough in cost-efficiency is underpinned by a systematic methodology built on four pillars:",
+          "Efficient Data Infrastructure: In resource-constrained scenarios, an efficient data infrastructure is pivotal; it serves to maximize the rate of knowledge acquisition per unit of time – thereby accelerating training efficiency – while simultaneously establishing the upper bound of model capabilities. To achieve this, we introduce a comprehensive Data Infrastructure composed of four synergistic modules: a Data Profiling Engine for multi-dimensional feature extraction, a Cross-modal Vector Engine for semantic deduplication and targeted retrieval, a World Knowledge Topological Graph for structured concept organization, and an Active Curation Engine for closed-loop refinement. By granularly profiling data attributes and orchestrating the training distribution, we ensure that the “right data” is aligned with the “right stage” of model development. This infrastructure maximizes the utility of real-world data streams, effectively eliminating computational waste arising from redundant or low-quality samples.",
+          "Efficient Architecture: Inspired by the remarkable scalability of decoder-only architectures in large language models brown2020language, we propose a Scalable Single-Stream Multi-Modal Diffusion Transformer (S3-DiT). Unlike dual-stream architectures that process text and image modalities in isolation, our design facilitates dense cross-modal interaction at every layer. This high parameter efficiency enables Z-Image to achieve superior performance within a compact 6B parameter size, significantly lowering the hardware requirements for both training and deployment. The compact model size is also made possible in part by our use of a prompt enhancer (PE) to augment the model’s complex world knowledge comprehension and prompt understanding capabilities, further mitigating the limitations of the modest parameter count. Furthermore, this early-fusion transformer architecture ensures superior versatility by treating tokens from different modalities uniformly – including text tokens, image VAE tokens, and image semantic tokens – enabling seamless handling of diverse tasks such as text-to-image generation and image-to-image editing within a unified framework.",
+          "Efficient Training Strategy: We design a progressive training curriculum composed of three strategic phases: (1) Low-resolution Pre-training, which bootstraps the model to acquire foundational visual-semantic alignment and synthesis knowledge at a fixed 2562256^{2} resolution. (2) Omni-pre-training, a unified multi-task stage that consolidates arbitrary-resolution generation, text-to-image synthesis, and image-to-image manipulation. By amortizing the heavy pre-training budget across these diverse capabilities, we eliminate the need for separate, resource-intensive stages. (3) PE-aware Supervised Fine-tuning, a joint optimization paradigm where Z-Image is fine-tuned using PE-enhanced captions. This ensures seamless synergy between the Prompt Enhancement module and the diffusion backbone without incurring additional LLM training costs, thereby maximizing the overall development efficiency of the Z-Image system.",
+          "Efficient Inference: We present Z-Image-Turbo, which delivers exceptional aesthetic alignment and high-fidelity visual quality in only 8 Number of Function Evaluations (NFEs). This performance is unlocked by the synergy of two key innovations: Decoupled DMD liu2025decoupled, which explicitly disentangles the quality-enhancing and training-stabilizing roles of the distillation process, and DMDR jiang2025dmdr, which integrates Reinforcement Learning by employing the distribution matching term as an intrinsic regularizer. Together, these techniques enable highly efficient generation without the typical trade-off between speed and quality.",
+          "Building upon this robust foundation and efficient workflow, we have successfully derived two specialized variants that address distinct application needs. First, our few-shot distillation scheme with reinforcement learning yields Z-Image-Turbo, an accelerated model that achieves exceptional aesthetic alignment in just 8 NFEs. It offers sub-second inference111FlashAttention-3 shah2024flashattention and torch.compile ansel2024pytorch is necessary for achieving sub-second inference latency. latency on enterprise GPUs and fits within the memory constraints of consumer-grade hardware (<16GB VRAM). Second, leveraging the multi-task nature of our omni-pre-training, we introduce Z-Image-Edit, a model specialized for precise instruction-following image editing.",
+          "Extensive qualitative and quantitative experiments demonstrate the superiority of the Z-Image family. As illustrated in Figure 1 and Figure 2, Z-Image delivers strong capabilities of photorealistic generation and exceptional bilingual (Chinese/English) text rendering, matching the visual fidelity of much larger models. Figure 3 showcases the capabilities of Z-Image-Edit, highlighting its precise adherence to editing instructions. Furthermore, qualitative comparisons in Figure 4 and Section 5.3 reveal that our model rivals top-tier commercial systems, proving that state-of-the-art results are achievable with significantly reduced computational overhead. We publicly release our code, weights, and online demo to foster the development of accessible, budget-friendly generative models."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "2 Data Infrastructure",
+        "level": 2,
+        "paragraphs": [
+          "While the remarkable capabilities of state-of-the-art text-to-image models are underpinned by large-scale training data, achieving optimal performance under constrained computational resources necessitates a paradigm shift from data quantity to data efficiency. Simply scaling the dataset size often leads to diminishing returns; instead, an efficient training pipeline requires a data infrastructure that maximizes the information gain per computing unit. To this end, an ideal data system must be strictly curated to be conceptually broad yet non-redundant, exhibit robust multilingual text-image alignment, and crucially, be structured for dynamic curriculum learning, ensuring that the data composition evolves to match the model’s training stages. To realize this, we have designed and implemented an integrated Efficient Data Infrastructure. Far from a static repository, this system operates as a dynamic engine architected to maximize the rate of knowledge acquisition within a fixed training budget. As the cornerstone of our pipeline, this infrastructure is composed of four core, synergistic modules:",
+          "Data Profiling Engine: This module serves as the quantitative foundation for our data strategy. It extracts and computes a rich set of multi-dimensional features from raw data, spanning low-level physical attributes (e.g.image metadata, clarity metrics) to high-level semantic properties (e.g., anomaly detection, textual description). These computed profiles are not merely for basic filtering; they are the essential signals used to quantify data complexity and quality, enabling the programmatic construction of curricula for our dynamic learning stages.",
+          "Cross-modal Vector Engine: Built on billions of embeddings, this module is the engine for ensuring efficiency and diversity. It directly supports our goal of a non-redundant dataset through large-scale semantic deduplication. Furthermore, its cross-modal search capabilities are critical for diagnosing and remediating model failures. This allows us to pinpoint and prune data responsible for specific failure cases and strategically sample to fill conceptual gaps.",
+          "World Knowledge Topological Graph: This structured knowledge graph provides the semantic backbone for the entire infrastructure. It directly underpins our goal of conceptual breadth by organizing knowledge hierarchically. Crucially, this topology functions as a semantic compass for data curation. It allows us to identify and fill conceptual voids in our dataset by traversing the graph to find underrepresented entities. Furthermore, it provides the structured framework needed to precisely rebalance the data distribution across different concepts during training, ensuring a more efficient and comprehensive learning process.",
+          "Active Curation Engine: This module operationalizes our infrastructure into a truly dynamic, self-improving system. It serves two primary, synergistic functions. First, it acts as a frontier exploration engine, employing automatic sampling to identify concepts on which the model performs poorly or lacks knowledge (“hard cases\"). Second, it drives a closed-loop data annotation pipeline. This ensures that every iteration not only expands conceptual breadth of the dataset with high-value knowledge but also continuously refines the data quality, maximizing the learning efficiency of the entire training process.",
+          "Collectively, these components forge a robust data infrastructure that not only fuels the training of text-to-image models but also establishes a versatile infrastructure for broader multimodal model training. Leveraging this system, we successfully facilitate the training of various critical components, including captioners, reward models, and our image editing model (i.e., Z-Image-Edit). In particular, we construct a dedicated data pipeline specifically for Z-Image-Edit upon this infrastructure, the details of which are elaborated in Section 2.5."
+        ],
+        "subsections": [
+          {
+            "title": "2.1 Data Profiling Engine",
+            "level": 3,
+            "paragraphs": [
+              "The Data Profiling Engine is engineered to systematically process a massive, uncurated data pool, comprising large-scale internal copyrighted collections. It computes a comprehensive suite of multi-dimensional features for each image-text pair, enabling principled data curation. Recognizing that different data sources exhibit unique biases, our engine supports source-specific heuristics and sampling strategies to ensure a balanced and high-quality training corpus. The profiling process is structured across several key dimensions:"
+            ],
+            "subsections": []
+          },
+          {
+            "title": "2.2 Cross-modal Vector Engine",
+            "level": 3,
+            "paragraphs": [
+              "We enhance the de-duplication method proposed in Stable Diffusion 3 esser2024scaling, reformulating it as a scalable, graph-based community detection task. Addressing the severe scalability bottleneck of the original r​a​n​g​e​_​s​e​a​r​c​hrange\\_search function, we substitute it with a highly efficient k-nearest neighbor (k-NN) s​e​a​r​c​hsearch function. We construct a proximity graph from the k-NN distances and subsequently apply the community detection algorithm traag2019louvain. This methodology closely approximates the original algorithm’s output for a sufficiently large k while drastically reducing time complexity. Our fully GPU-accelerated cugraph_rapidsai pipeline achieves a processing rate of approximately 8 hours per 1 billion items on 8 H800s, encompassing index construction and 100-NN querying. This approach not only ensures a non-redundant dataset by identifying dense clusters for effective de-duplication but also extracts semantic structures via modularity levels, facilitating fine-grained data balancing.",
+              "Furthermore, we constructed an efficient retrieval pipeline leveraging multimodal features yang2022chinese combined with a state-of-the-art index algorithm ootomo2024cagra. This system’s cross-modal search capabilities are critical for both data curation and active model remediation. Beyond identifying distributional voids for strategically sampling to fill conceptual gaps – thereby enabling targeted augmentation for a balanced pre-training distribution – this engine is instrumental in diagnosing model failures. By querying the system with failure cases (e.g., problematic generated images or text prompts), we can pinpoint and prune the underlying data clusters responsible for the erroneous behavior. This iterative refinement process, targeting both data gaps and model failures, ensures dataset robustness and is pivotal for sourcing high-quality candidates for complex downstream tasks."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "2.3 World Knowledge Topological Graph",
+            "level": 3,
+            "paragraphs": [
+              "The construction of our knowledge graph follows a three-stage process. Initially, we build a comprehensive but redundant knowledge graph from all Wikipedia entities and their hyperlink structures. To refine this graph, we employ a two-pronged pruning strategy: first, centrality-based filtering removes nodes with exceptionally low PageRank page1999pagerank scores, which represent isolated or seldom-referenced concepts; second, visual generatability filtering uses a VLM to discard abstract or ambiguous concepts that cannot be coherently visualized. Subsequently, to address the limited conceptual coverage of the pruned graph, we augment it by leveraging a large-scale internal dataset of captioned images. We extract tags and corresponding text embeddings from all available captions. Inspired by vo2024automatic, we then perform an automatic hierarchical strategy on these embeddings. Each parent node is named by using a VLM to summarize its child nodes. This not only supplements the graph with new concept nodes but also organizes them into a structured taxonomic tree, significantly enhancing the structural integrity of the graph. In the final stage, we perform weight assignment and dynamic expansion to align the graph with practical applications. This involves manually curating and up-weighting high-frequency concepts from user prompts, and proactively integrating novel, trending concepts not yet present in our data pool to maintain the relevance and timeliness of the graph.",
+              "In application, this graph underpins our semantic-level balanced sampling strategy. We map the tags within each training caption to their corresponding nodes in the knowledge graph. By considering both the BM25 robertson2009probabilistic score of a tag and its hierarchical relationships (i.e., parent-child links) within the graph, we compute a semantic-level sampling weight for each data point. This weight then guides our data engine to perform principled, staged sampling from the data pool, enabling fine-grained control over the training data distribution."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "2.4 Active Curation Engine",
+            "level": 3,
+            "paragraphs": [
+              "To systematically elevate data quality and address long-tail distribution challenges, we deploy a comprehensive Active Curation Engine (Figure 5). This framework incorporates a filtering tool and Z-Image as a diagnostic generative prior. The pipeline begins by processing uncurated data through cross-modal embedding and deduplication, followed by rule-based filtering to eliminate low-quality samples.",
+              "To support the continuous evolution of Z-Image, we establish a human-in-the-loop active learning cycle (Figure 6) where the reward model and captioner are progressively optimized. In this pipeline, we first employ the topology graph (Section 2.3) and the initial reward model to curate a balanced subset from the unlabeled media pool. The current captioner and reward model then assign pseudo-labels to these samples. A hybrid verification mechanism – comprising both human and AI verifiers – verifies these proposals; rejected samples trigger a manual correction phase by human experts to refine captions or scores. This high-quality annotated data is then used to retrain the captioner and reward model, thereby creating a virtuous cycle of our whole data infrastructure enhancement."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "2.5 Efficient Construction of Editing Pairs with Graphical Representation",
+            "level": 3,
+            "paragraphs": [
+              "Collecting editing pairs that exhibits precise instruction following is challenging, owing to the requirement of consistency maintaining and the diverse and complex nature of editing operations. Through scalable and controllable strategies as shown in Figure 7, we construct a large-scale training corpus from diverse sources.",
+              "Mixed Editing with Expert Models. To guarantee broad task coverage, we begin by curating a diverse taxonomy of editing tasks, and then leverage task-specific expert models to synthesize high-quality training data for each category. To improve the training efficiency, we construct mixed-editing data, where multiple editing actions are integrated into one editing pair. Thus, the model can enhance its ability in multiple editing tasks from only a single composite pair, instead of relying on multiple ones.",
+              "Efficient Graphical Representation. For an input image, we synthesize multiple edited versions corresponding to different editing tasks, enabling us to further scale the training data at zero cost through arbitrary pairwise combination li2025visualcloze (e.g., 2(N+12)\\tbinom{N+1}{2} pairs are constructed from one input image and its NN edited versions). Apart from scaling the quantity, this strategy 1) creates mixed-editing training data by combining two edited versions to enhance the training efficiency, and 2) yields inverse pairs to improve data quality, i.e., transforming a real, undistorted input image to an output image.",
+              "Paired Images from Videos. Constructing image editing pairs from predefined tasks suffers from limited diversity. To overcome this issue, we leverage naturally grouped images collected from a large scale video frames in our media pool. These images, by sharing inherent relatedness (e.g., common subjects, scenes, or styles), implicitly define complex editing relationships among themselves. Building on this, we refine the data by calculating the cosine similarity between image embeddings using CN-CLIP yang2022chinese, allowing us to filter for pairs with high semantic relevance within each image group. The resulting dataset of video frame pairs offers three key advantages: 1) high task diversity, 2) inherent coupling of multiple edit types (e.g., simultaneous changes in human pose and background), and 3) superior scalability.",
+              "Rendering for Text Editing. The acquisition of high-quality training data for text editing presents substantial challenges, where natural images suffer from the scarcity and imbalance of textual content, and text editing requires paired samples with precise operation annotations. To address these challenges, we develop a controllable text rendering system qwenimage that grants us precise control over not only the textual content but also its visual attributes, such as font, color, size, and position. This approach enables us to systematically generate a large-scale dataset of paired images, where the ground-truth editing instruction are known by the rendering operation, thereby directly overcoming the aforementioned data limitations."
+            ],
+            "subsections": []
+          }
+        ]
+      },
+      {
+        "title": "3 Image Captioner",
+        "level": 2,
+        "paragraphs": [
+          "We build an all-in-one image captioner, Z-Captioner, by incorporating multiple types of image caption. As revealed in previous works lu2025omnicaptioner, different captioning tasks can benefit each other as they share the same goal of understanding and depicting images. Our model is designed not only to describe visual elements, but also to leverage extensive world knowledge to interpret the semantic context of the image. The integration of world knowledge is particularly critical for the downstream text-to-image synthesis task, as it enables the model to accurately render images involving specific named entities. Figure 8 shows our pipeline for generating text-to-image captions and image editing instructions."
+        ],
+        "subsections": [
+          {
+            "title": "3.1 Detailed Caption with OCR Information",
+            "level": 3,
+            "paragraphs": [
+              "First, we specially emphasize that according to our experiments, including explicit OCR information in image captions is inextricably bound with accurate text rendering in the generated images. Therefore, we employ a way that shares the same spirit as Chain-of-Thought (CoT) wei2022chain, by first explicitly recognizing all optical characters in the image and then generating a caption based on the OCR results. This effectively mitigates missing texts compared to directly generating a caption that encapsulates everything, especially for the cases where texts are very long/dense. In addition, we force the OCR results to remain in their original languages without any translation, avoiding them being falsely rendered in their translated languages."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "3.2 Multi-Level Caption with World Knowledge",
+            "level": 3,
+            "paragraphs": [
+              "We design five different types of image captions in total, including long, medium and short captions, as well as tags and simulated user prompts. With the data infrastructure in Section 2, we include world knowledge in all five types of captions by performing image captioning conditioned on meta information. This significantly alleviates hallucinations when our captioner identifies and names specific entities such as public figures, famous landmarks, or known events.",
+              "To be specific, for relatively long captions, we include very dense information of the images, in order that the model could learn a mapping from the text to the image as accurate as possible. These captions contain full OCR results as mentioned above, along with subjects, objects, background, location information, et al. We deliberately adopt a plain and objective linguistic style for our descriptions, strictly confining them to factual information observable in the image. By inhibiting subjective interpretations and imaginative associations, our purpose is to enhance data efficiency for the image generation task by eliminating non-essential information.",
+              "On the other hand, short captions, tags and simulated user prompts are designed for the model to adapt to real user prompts (which are usually short and unspecific) for better user experience. Notably, most of the simulated user instructions are incomplete prompts. They differ from short captions in that a short caption provides a relatively complete and comprehensive description of the entire image. In contrast, a short simulated prompt may mimic user behavior by focusing only on specific parts of interest to the user, while making no mention of the rest of the image."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "3.3 Difference Caption for Image Editing",
+            "level": 3,
+            "paragraphs": [
+              "Difference caption is a concise editing instruction specifying the transformation from a source to a target image. To generate this, we employ a three-step CoT process that systematically breaks down the comparative task zhuo2025factuality.",
+              "Step1: Detailed Captioning. We first generate a comprehensive, OCR-inclusive caption for both the source and target images respectively. This step provides a structured, detailed representation of each image’s content.",
+              "Step2: Difference Analysis. The model then performs a comparative analysis, leveraging both the raw images and their generated captions, to tell all discrepancies from visual and textual perspectives.",
+              "Step3: Instruction Synthesis. Finally, the model generates a concise editing instruction based on the identified differences.",
+              "This step‑by‑step process helps the model create clear and useful instructions by moving from understanding, to comparing, and finally to generating the instructions."
+            ],
+            "subsections": []
+          }
+        ]
+      },
+      {
+        "title": "4 Model Training",
+        "level": 2,
+        "paragraphs": [
+          "This section presents the complete training pipeline of Z-Image and Z-Image-Edit. We begin by introducing our Scalable Single-Stream Diffusion Transformer (S3-DiT) architecture (Section 4.1) and training efficiency optimizations (Section 4.2), followed by a multi-stage training process: pre-training (Section 4.3), supervised fine-tuning (Section 4.4), few-step distillation (Section 4.5), and reinforcement learning with human feedback (Section 4.6). Finally, we describe the continued training strategy for image editing capabilities (Section 4.7) and our reasoning-enhanced prompt enhancer (Section 4.8). The overall training pipeline is summarized in Figure 11. And in Figure 12, we present intermediate generation results throughout Z-Image’s training process to demonstrate the benefits contributed by each stage."
+        ],
+        "subsections": [
+          {
+            "title": "4.1 Architecture",
+            "level": 3,
+            "paragraphs": [
+              "Efficiency and stability are the core objectives guiding the design of Z-Image. To achieve this, we employ the lightweight Qwen3-4B yang2025qwen3 as the text encoder, leveraging its bilingual proficiency to align complex instructions with visual content. For image tokenization, we utilize the Flux VAE flux2023 selected for its proven reconstruction quality. Exclusively for editing tasks, we augment the architecture with SigLIP 2 tschannen2025siglip to capture abstract visual semantics from reference images. Inspired by the scaling success of decoder-only models, we adopt a Single-Stream Multi-Modal Diffusion Transformer (MM-DiT) paradigm esser2024scaling. In this setup, text, visual semantic tokens, and VAE image tokens are concatenated at the sequence level to serve as a unified input stream, maximizing parameter efficiency compared to dual-stream approaches esser2024scaling; qwenimage. We employ 3D Unified RoPE qin2025lumina; wu2025omnigen2 to model this mixed sequence, wherein image tokens expand across spatial dimensions and text tokens increment along the temporal dimension. Crucially, for editing tasks, the reference image tokens and target image tokens are assigned aligned spatial RoPE coordinates but are separated by a unit interval offset in the temporal dimension. Additionally, different time-conditioning values are applied to the reference and target images to distinguish between clean and noisy images.",
+              "As illustrated in Figure 10, the specific architecture of our S3-DiT (Scalable Single-Stream DiT) commences with lightweight modality-specific processors, each composed of two transformer blocks for initial modal alignment. Subsequently, tokens enter the unified single-stream backbone. To ensure training stability, we implement QK-Norm to regulate attention activations karras2024analyzing; luo2018cosine; gidaris2018dynamic; nguyen2023enhancing and Sandwich-Norm to constrain signal amplitudes at the input and output of each attention / FFN blocks ding2021cogview; gao2024lumina-next. For conditional information injection, input condition vectors are projected into scale and gate parameters to modulate the normalized inputs and outputs of both Attention and FFN layers. To reduce parameter overhead, this projection is decomposed into a low-rank pair: a shared, layer-agnostic down-projection layer followed by layer-specific up-projection layers. Finally, RMSNorm zhang2019root is uniformly utilized for all the aforementioned normalization operations."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "4.2 Training Efficiency Optimization",
+            "level": 3,
+            "paragraphs": [
+              "To optimize training efficiency, we implemented a multi-faceted strategy targeting both computational and memory overheads.",
+              "For distributed training, we employed a hybrid parallelization strategy. We applied standard Data Parallelism (DP) to the VAE and Text Encoder, as they remain frozen and incur minimal memory footprint. In contrast, for the large DiT model, where optimizer states and gradients consume substantial memory, we utilized FSDP2 zhao2023pytorch to effectively shard these overheads across GPUs. Furthermore, we implemented gradient checkpointing across all DiT layers. This technique trades an acceptable increase in computational cost for significant memory savings, enabling larger batch sizes and improved overall throughput. To further accelerate computation and optimize memory usage, the DiT blocks were compiled using torch.compile, a just-in-time (JIT) compiler ansel2024pytorch.",
+              "In addition to system-level optimizations, we addressed inefficiencies arising from mixed-resolution training. Grouping samples with significantly different sequence lengths into a single batch typically results in excessive padding, which significantly impedes overall training speed. To mitigate this, we designed a sequence length-aware batch construction strategy. Prior to training, we estimate the sequence length of each sample based on the resolution (height and width) recorded in the metadata. The sampler then groups samples with similar sequence lengths into the same batch, thereby minimizing computational waste. Crucially, we additionally employ a dynamic batch sizing mechanism: smaller batch sizes are assigned to long-sequence batches to prevent Out-Of-Memory (OOM) errors, while larger batch sizes are used for short sequences to avoid resource vacancy. This approach ensures maximal hardware utilization across varying resolutions."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "4.3 Pre-training",
+            "level": 3,
+            "paragraphs": [
+              "Z-Image is trained using the flow matching objective lipman2022flow; liu2022flow, where noised inputs are first constructed through linear interpolation between Gaussian noise x0x_{0} and the original image x1x_{1}, i.e., xt=t⋅x1+(1−t)⋅x0x_{t}=t\\cdot x_{1}+(1-t)\\cdot x_{0}. The model is then trained to predict the velocity of the vector field that defines the path between them, i.e., vt=x1−x0v_{t}=x_{1}-x_{0}. The training objective can be formulated as:",
+              "Where θ\\theta as the learnable parameters and yy as the conditional embedding. Following SD3 esser2024scaling, we employ the logit-normal noise sampler to concentrate the training process on intermediate timesteps. Additionally, to account for the variations in Signal-to-Noise Ratio (SNR) arising from our multi-resolution training setup, we adopt the dynamic time shifting strategy as used in Flux flux2023. This ensures that the noise level is appropriately scaled for different image resolutions, leading to more effective training.",
+              "The pre-training of Z-Image can be broadly divided into two phases: low-resolution pre-training and omni-pre-training.",
+              "Low-resolution Pre-training. This phase consists of a single stage, conducted exclusively at a 2562256^{2} resolution on the text-to-image generation task. The primary emphasis of this stage is on efficient cross-modal alignment and knowledge injection – equipping the model with the capability to generate a diverse range of concepts, styles, and compositions, which is consistent with the initial stage of conventional multi-stage training protocols. As shown in Figure 1, this phase accounts for over half of our total pre-training compute. This allocation is based on the rationale that the majority of the model’s foundational visual knowledge (e.g., Chinese text rendering) is acquired during this low-resolution training stage.",
+              "Omni-pre-training. The “omni” here signifies three key aspects:",
+              "Arbitrary-Resolution Training: We design an arbitrary-resolution training strategy in which the original image resolution is mapped to a predefined training resolution range through a resolution-mapping function. The model is then trained on images with diverse resolutions and aspect ratios. This enables the learning of cross-scale visual information, mitigates information loss caused by downsampling to a fixed resolution, and improves overall data efficiency.",
+              "Joint Text-to-Image and Image-to-Image Training: We integrate the image-to-image task into the pre-training framework. By leveraging the substantial compute budget available during pre-training, we can effectively exploit large-scale, naturally occurring, and weakly aligned image pairs, as discussed in Section 2.5. Learning the relationships between natural image pairs provides a strong initialization for downstream tasks such as image editing. Importantly, we observe that this joint pre-training scheme does not introduce any noticeable performance degradation on the text-to-image task.",
+              "Multi-level and Bilingual Caption Training: It is widely recognized that high-quality captions are crucial for training text-to-image models betker2023improving. To ensure both bilingual understanding and strong native prompt-following capability, we employ Z-Captioner to generate bilingual, multi-level synthetic captions (including long, medium, and short descriptions, as well as tags and simulated user prompts). In addition, the original textual metadata associated with each image is incorporated with a small probability to further enhance the model’s acquisition of world knowledge. The use of captions at different granularities and from diverse perspectives provides broad mode coverage, which is beneficial for subsequent stages of training. Moreover, for image-to-image tasks, we randomly sample either the target image’s caption or the pairwise difference caption with a certain probability, corresponding to reference-guided image generation and multi-task image editing, respectively.",
+              "Working with our data infrastructure, the omni-pre-training phase is conducted in multiple stages. Upon completion of the final stage, the model becomes capable of generating images at arbitrary resolutions up to the 1k-1.5k range and can condition its output on both image and text inputs. This provides a suitable starting point for the subsequent training of Z-Image and Z-Image-Edit."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "4.4 Supervised Fine-Tuning (SFT)",
+            "level": 3,
+            "paragraphs": [],
+            "subsections": []
+          },
+          {
+            "title": "4.5 Few-Step Distillation",
+            "level": 3,
+            "paragraphs": [
+              "The goal of the Few-Step Distillation stage is to reduce the inference time of our foundational SFT model, achieving the efficiency demanded by real-world applications and large-scale deployment. While our 6B foundational model represents a significant leap in efficiency compared to larger counterparts, the inference cost remains non-negligible. Due to the inherent iterative nature of diffusion models, our standard SFT model requires approximately 100 Number of Function Evaluations (NFEs) to generate high-quality samples using Classifier-Free Guidance (CFG) ho2022classifier. To bridge the gap between generation quality and interactive latency, we implemented a few-step distillation strategy.",
+              "Fundamentally, the distillation process involves teaching a student model to mimic the teacher’s denoising dynamics across fewer timesteps along its sampling trajectory. The core challenge lies in reducing the inherent uncertainty of this trajectory, allowing the student to “collapse” its probabilistic path into a deterministic and highly efficient inference process. Therefore, the key to enable a stable few-step integrator is to meticulously control the distillation process. We initially selected the Distribution Matching Distillation (DMD) yin2024improved; dmd paradigm due to its promising performance in academic works. However, in practice, we encountered persistent artifacts such as the loss of high-frequency details and noticeable color shifts – issues that have been increasingly documented by the community. These observations signaled a need for algorithmic refinement. Through a deeper exploration of the distillation mechanism, we gained new insights into the underlying dynamics of DMD, leading to two key technical advancements: Decoupled DMD liu2025decoupled and DMDR jiang2025dmdr. We refer interested readers to the respective academic papers for full technical details. Below, we introduce the practical application of these techniques in building Z-Image-Turbo."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "4.6 Reinforcement Learning with Human Feedback (RLHF)",
+            "level": 3,
+            "paragraphs": [
+              "Following the previous stages, the model has acquired strong foundational capabilities but may still exhibit inconsistencies in aligning with nuanced human preferences. To bridge this gap, we introduce a comprehensive post-training framework leveraging Reinforcement Learning with Human Feedback (RLHF). This framework hinges on a powerful, multi-dimensional reward model, which provides targeted feedback for online optimization. Guided by these feedback signals, our approach is structured into two sequential stages: an initial offline alignment phase using Direct Preference Optimization (DPO) rafailov2023direct, followed by an online refinement phase with Group Relative Policy Optimization (GRPO) shao2024deepseekmathpushinglimitsmathematical; flowgrpo. This two-stage strategy allows us to first efficiently instill robust adherence to objective standards and then leverage the fine-grained signals from our reward model for optimizing more subjective qualities. As illustrated in Figure 14, this comprehensive process yields substantial improvements in photorealism, aesthetic quality, and instruction following."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "4.7 Continued Training for Image Editing",
+            "level": 3,
+            "paragraphs": [
+              "Starting from the base model, the continued pre-training for image editing consists of two stages, as shown in Figure 10. In the continued pre-training stage, we train the model with our constructed editing pairs (see Section 2.5), together with our text-to-image SFT data to ensure high image quality. We first train the whole amount of editing data in resolution of 5122512^{2} for a few thousand steps for quick adaptation to editing tasks, and then increase the image resolution to 102421024^{2} for high generation quality. Because image editing data pairs are expensive and difficult to acquire, their total volume is significantly smaller and far less diverse than that of text-to-image data. Therefore, we suggest a relatively higher ratio of text-to-image data (e.g., text-to-image:image-to-image =4:1=4:1) to avoid performance degradation during training.",
+              "In the following SFT stage, a task-balanced, high-quality subset of the training data is manually constructed to further improve the model’s overall performance, especially its instruction following ability. However, synthetic data (e.g., the rendered text data for text editing), though easy-to-acquire and guaranteed to be 100% accurate in terms of instruction following, are far from the distribution of real-world user input, and are thus heavily downsampled in this final training stage."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "4.8 Prompt Enhancer with Reasoning Chain",
+            "level": 3,
+            "paragraphs": [
+              "Due to limited model size (6B parameters), Z-Image exhibits limitations in world knowledge, intent understanding, and complex reasoning. However, it serves as a powerful text decoder capable of translating detailed prompts into realistic images. To address the cognitive gaps, we propose equipping Z-Image with a Prompt Enhancer (PE), powered by system prompt and a pretrained VLM, to improve its reasoning and knowledge capabilities.",
+              "Distinct from other methods, we keep the large VLM fixed during alignment. Instead, we process all input prompts (and input images for Z-Image-Edit) through our PE model during the Supervised Fine-Tuning (SFT) stage. This strategy ensures that Z-Image aligns effectively with the Prompt Enhancer during SFT. Furthermore, we identify the structured reasoning chain as a key factor for injecting reasoning and world knowledge. As shown in Figure 15, without reasoning, the PE merely renders coordinate text onto the image when given geolocation data; with reasoning, it infers the location (e.g., West Lake) to generate the correct scene. Similarly, in generating journal-style instructions, the lack of reasoning leads to monotonous outputs, whereas the reasoning-enhanced model enriches the result by generating specific illustrations for each step."
+            ],
+            "subsections": []
+          }
+        ]
+      },
+      {
+        "title": "5 Performance Evaluation",
+        "level": 2,
+        "paragraphs": [],
+        "subsections": [
+          {
+            "title": "5.1 Human Preference Evaluation",
+            "level": 3,
+            "paragraphs": [],
+            "subsections": []
+          },
+          {
+            "title": "5.2 Quantitative Evaluation",
+            "level": 3,
+            "paragraphs": [
+              "To comprehensively evaluate the generation and editing capabilities of Z-Image and its variants (Z-Image-Turbo and Z-Image-Edit), we conducted extensive experiments across multiple authoritative benchmarks. These evaluations cover general image generation, fine-grained instruction following, text rendering in both English and Chinese, and instruction-based image editing."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "5.3 Qualitative Evaluation",
+            "level": 3,
+            "paragraphs": [
+              "To further demonstrate the visual generation capacity of Z-Image 444In the section, all results of Z-Image are generated by our Turbo version., we first give the qualitative comparison against state-of-the-art open-source models (Lumina-Image 2.0 qin2025lumina, Qwen-Image qwenimage, HunyuanImage 3.0 cao2025hunyuanimage, and FLUX 2 dev flux-2-2025) and close-source models (Imagen 4 Ultra google2025imagen4, Seedream 4.0 seedream2025seedream and Nano Banana Pro nanopro). We then show the editing capacity of our Z-Image-Edit. We next show the examples of how reasoning capacity and world knowledge are injected by our prompt enhancer. We finally show that the emerging multi-lingual and multi-cultural understanding capacity of our Z-Image."
+            ],
+            "subsections": []
+          }
+        ]
+      },
+      {
+        "title": "6 Conclusion",
+        "level": 2,
+        "paragraphs": [
+          "In this report, we introduce the Z-Image series, a suite of high-performance 6B-parameter models built upon a Scalable Single-Stream Diffusion Transformer (S3-DiT). Challenging the prevailing “scale-at-all-costs” paradigm, we propose a holistic end-to-end solution anchored by four strategic pillars: (1) a curated, efficient data infrastructure; (2) a scalable single-stream architecture; (3) a streamlined training strategy; and (4) advanced optimization techniques for high-quality and efficient inference, encompassing PE- aware supervised fine-tuning, few-step distillation, and reward post-training.",
+          "This synergy allows us to complete the entire workflow within 314K H800 GPU hours at a total cost of under $630K, delivering top-tier photorealistic synthesis and bilingual text rendering. Beyond the robust base model, our pipeline yields Z-Image-Turbo, which enables sub-second inference (<1s) on an enterprise-grade H800 GPU and fits comfortably within 16G VRAM consumer-grade hardware. Additionally, we develop Z-Image-Edit, an editing model efficiently derived via our omni-pretraining paradigm. Through this pipeline, we provide the community with a blueprint for developing accessible, budget-friendly, yet state-of-the-art generative models."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "7 Authors",
+        "level": 2,
+        "paragraphs": [],
+        "subsections": [
+          {
+            "title": "7.1 Core Contributors555Core Contributors are listed in alphabetical order of the last name.",
+            "level": 3,
+            "paragraphs": [
+              "Huanqia Cai, Sihan Cao, Ruoyi Du, Peng Gao, Steven Hoi, Zhaohui Hou, Shijie Huang, Dengyang Jiang, Xin Jin, Liangchen Li, Zhen Li, Zhong-Yu Li, David Liu, Dongyang Liu, Junhan Shi, Qilong Wu, Feng Yu, Chi Zhang, Shifeng Zhang, Shilin Zhou"
+            ],
+            "subsections": []
+          },
+          {
+            "title": "7.2 Contributors666Contributors are listed in alphabetical order of the last name.",
+            "level": 3,
+            "paragraphs": [
+              "Chenglin Cai, Yujing Dou, Yan Gao, Minghao Guo, Songzhi Han, Wei Hu, Yuyan Huang, Xu Li, Zefu Li, Heng Lin, Jiaming Liu, Linhong Luo, Qingqing Mao, Jingyuan Ni, Chuan Qin, Lin Qu, Jinghua Sun, Peng Wang, Ping Wang, Shanshan Wang, Xuecong Wang, Yi Wang, Yue Wang, Tingkun Wen, Junde Wu, Minggang Wu, Xiongwei Wu, Yi Xin, Haibo Xing, Xiaoxiao Xu, Ze Xu, Xunliang Yang, Shuting Yu, Yucheng Zhao, Jianan Zhang, Jianfeng Zhang, Jiawei Zhang, Qiang Zhang, Xudong Zhao, Yu Zheng, Haijian Zhou, Hanzhang Zhou"
+            ],
+            "subsections": []
+          }
+        ]
+      }
+    ],
+    "figures": [
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/figures/showcase_realistic.jpg",
+        "alt": "Refer to caption",
+        "caption": "Figure 1: Showcases of Z-Image-Turbo in photo-realistic image generation. All related prompts can be found in Appendix A.1.",
+        "label": "S0.F1"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/figures/showcase_text.jpg",
+        "alt": "Refer to caption",
+        "caption": "Figure 2: Showcases of Z-Image-Turbo in bilingual text-rendering. All related prompts can be found in Appendix A.2.",
+        "label": "S0.F2"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/figures/showcase_editing.jpg",
+        "alt": "Refer to caption",
+        "caption": "Figure 3: Showcases of Z-Image-Edit in various image-to-image tasks. Each arrow represents an edit from the input to output images. All related prompts can be found in Appendix A.3.",
+        "label": "S0.F3"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x5.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 4: Showcases of comparison between Z-Image-Turbo and currently state-of-the-art models qin2025lumina; qwenimage; cao2025hunyuanimage; nanopro; flux-2-2025; seedream2025seedream; gao2025seedream; google2025imagen4. Z-Image-Turbo shows conspicuous photo-realistic generation capacity.",
+        "label": "S0.F4"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x6.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 5: Overview of the Active Curation Engine. The pipeline refines uncurated data through cross-modal embedding, deduplication, and rule-based filtering to construct a high-quality augmented dataset. A feedback mechanism leverages the Z-Image model to diagnose long-tail distribution deficiencies, dynamically guiding cross-modal retrieval to reinforce the data collection process. The “Squirrel Fish” (松鼠鳜鱼) case illustrates a classic long-tail challenge: it is actually the name of a Chinese cuisine but the model lacks the specific concept for this dish and may rely on compositional reasoning (combining “Squirrel” (松鼠) and “Fish” (鳜鱼)), leading to erroneous generations absent of domain-specific training data.",
+        "label": "S2.F5"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x7.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 6: Illustration of the Human-in-the-Loop Active Learning Cycle. Data sampled from the media pool undergoes concept and quality balancing before being assigned pseudo-labels . A dual-verifier system (Human and AI) filters these proposals: approved samples pass directly, while rejected cases trigger a manual correction phase . This feedback loop iteratively refines the annotations and updates the topology graph to ensure high-precision alignment.",
+        "label": "S2.F6"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/figures/dabenzhong.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 8: Pipeline for generating text-to-image captions and image editing instructions. OCR results (obtained through CoT) and world knowledge (from meta information) are explicitly included into the captions.",
+        "label": "S3.F8"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x8.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 9: Single image caption and difference caption examples. Left: for single image, we have captions of different types and lengths, and notably, OCR results (all the texts transcribed in their original languages) and world knowledge (explicitly and correctly recognizing the famous beauty spot, West Lake, Hangzhou, China, in this example) is included. Right: difference captions are composed step-by-step.",
+        "label": "S3.F9"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x9.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 10: Architecture overview of the Z-Image series. The S3-DiT consists of single-stream FFN blocks and single-stream attention blocks. It processes inputs from different modalities through lightweight modality-specific processors, then concatenates them into a unified input sequence. This modality-agnostic architecture maximizes cross-modal parameter reuse to ensure parameter efficiency, while providing flexible compatibility for varying input configurations in both Z-Image and Z-Image-Edit.",
+        "label": "S4.F10"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x10.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 11: The training pipeline of Z-Image and Z-Image-Edit. The low-resolution pre-training and omni-pre-training stages provide a suitable initialization for image generation and editing tasks, after which separate post-training processes yield the Z-Image and Z-Image-Edit models respectively.",
+        "label": "S4.F11"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/figures/train_stage.jpg",
+        "alt": "Refer to caption",
+        "caption": "Figure 12: Intermediate generation results throughout Z-Image-Turbo’s training process, echoing our analysis of each stage’s contribution.",
+        "label": "S4.F12"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x11.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 13: Few-Step Distillation visualization results across different distillation strategies: (a) the original SFT model; (b) Standard DMD; (c) Decoupled DMD (D-DMD); and (d) D-DMD+DMDR (Z-Image-Turbo). The proposed approach achieves real-time 8-step inference while attaining superior perceived quality and aesthetic appeal.",
+        "label": "S4.F13"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x12.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 14: Visual comparison between Few-Step Distillation (FSD, top row) and RLHF (bottom row). Building upon the strong foundation of the FSD model, RLHF further enhances photorealism, aesthetic quality, and instruction following.",
+        "label": "S4.F14"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x13.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 15: PE visualization. We compare generation results between PE without reasoning (middle column) and PE with reasoning (right column). As shown in the top row, the reasoning chain enables the model to decipher raw coordinates into a specific scenic context (e.g., West Lake) rather than simply rendering the coordinate text. In the second row, the reasoning module plans detailed steps for \"brewing Pu-erh tea,\" allowing the model to generate specific illustrations for each step instead of a generic list. This demonstrates that the reasoning chain effectively injects world knowledge and provides fine-grained content planning for complex user prompts.",
+        "label": "S4.F15"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x14.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 16: Comparison of close-up portrait generation, which indicates that Z-Image exhibits strong capabilities in character emotion and skin texture rendering. Better to zoom in to check the subtle expressions and the texture of the skin.",
+        "label": "S5.F16"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x15.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 17: Comparison of close-up portrait generation, which indicates that Z-Image exhibits strong capabilities in character emotion and skin texture rendering. Better to zoom in to check the subtle expressions and the texture of the skin.",
+        "label": "S5.F17"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x16.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 18: Comparison of complex close-up portrait generation, which indicates that Z-Image-Turbo has a strong ability in rendering character expressions and skin textures, as well as generating aesthetic images. Better to zoom in to check the subtle expressions.",
+        "label": "S5.F18"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x17.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 19: Comparison of scene shooting, which indicates that Z-Image-Turbo shows strong performance in the authenticity of both the person and the background, as well as the aesthetic appeal of layout and posture. Better to zoom in to check the texture of the clothes and hair.",
+        "label": "S5.F19"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x18.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 20: Comparison of scene shooting, which indicates that Z-Image-Turbo shows strong performance in the authenticity of both the person and the background, as well as the aesthetic appeal of layout and posture. Better to zoom in to check the details.",
+        "label": "S5.F20"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x19.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 21: Comparison of complex Chinese text rendering. It shows that only Z-Image-Turbo and Nano Banana Pro can accurately generates the expected Chinese couplet. Better to zoom in to check the correctness of the rendered text and the authenticity of the person.",
+        "label": "S5.F21"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x20.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 22: Comparison of complex English text rendering. It shows that only Z-Image-Turbo and Nano Banana Pro can accurately generates the expected English couplet. Better to zoom in to check the correctness of the rendered text and the layout of the scene.",
+        "label": "S5.F22"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x21.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 23: Comparison of Chinese text rendering in poster design. Z-Image-Turbo not only presents correct text rendering, but also designs a more aesthetically pleasing and realistic poster. Better to zoom in to check the correctness of the rendered text and the fidelity of the food.",
+        "label": "S5.F23"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x22.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 24: Comparison of English text rendering in poster design. Only Z-Image-Turbo presents correct text rendering with a pleasing and realistic poster. Better to zoom in to check the correctness of the rendered text and the details of the poster.",
+        "label": "S5.F24"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x23.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 25: The first two columns: Mixed-instruction editing across various tasks in Z-Image-Edit. The last two columns: Text editing (with bounding box) and identity-preservation editing in Z-Image-Edit.",
+        "label": "S5.F25"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x24.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 26: Showcases of prompt enhancer for logical reasoning.",
+        "label": "S5.F26"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x25.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 27: Showcases of prompt enhancer for world knowledge injection. Given the poem title \"After Passing the Imperial Examination\" (《登科后》), the baseline (Left) lacks cultural context. Our method (Right) leverages LLM priors to retrieve specific historical details (e.g., the galloping horse, red official robe) and the famous couplet: \"春风得意马蹄疾，一日看尽长安花。\", the reasoning module (center) translates these literary semantics into visual cues, ensuring a culturally faithful rendering with precise text transcription.",
+        "label": "S5.F27"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x26.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 28: Showcases of prompt enhancer in image editing for handling ambiguous and unclear instructions.",
+        "label": "S5.F28"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x27.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 29: Showcases of prompt enhancer in image editing for world knowledge injection and reasoning.",
+        "label": "S5.F29"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.22699/assets/x28.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 30: Emerging Multi-lingual and Multi-cultural Understanding Capacity of Z-Image-Turbo. It shows that Z-Image-Turbo can not only understand prompts in multiple languages but also leverage its world knowledge to generate images that align with local cultures and landmarks.",
+        "label": "S5.F30"
+      }
+    ],
+    "tables": [
+      {
+        "caption": null,
+        "headers": [],
+        "rows": [
+          [
+            "",
+            "GitHub",
+            "https://github.com/Tongyi-MAI/Z-Image"
+          ],
+          [
+            "",
+            "ModelScope Model",
+            "https://modelscope.cn/models/Tongyi-MAI/Z-Image-Turbo"
+          ],
+          [
+            "",
+            "HuggingFace Model",
+            "https://huggingface.co/Tongyi-MAI/Z-Image-Turbo"
+          ],
+          [
+            "",
+            "ModelScope Demo",
+            "Online Demo (ModelScope)"
+          ],
+          [
+            "",
+            "HuggingFace Demo",
+            "Online Demo (HuggingFace)"
+          ],
+          [
+            "",
+            "Image Gallery",
+            "Online Gallery Offline Gallery"
+          ]
+        ],
+        "label": null
+      },
+      {
+        "caption": "Table 1: Training costs of Z-Image, assuming the rental price of H800 is about $2 per GPU hour. The rental price refers from leadergpu2025pricing.",
+        "headers": [],
+        "rows": [
+          [
+            "Training Costs",
+            "Low-res. Pre-Training",
+            "Omni-Pre-Training",
+            "Post-Training",
+            "Total"
+          ],
+          [
+            "in H800 GPU Hours",
+            "147.5K",
+            "142.5K",
+            "24K",
+            "314K"
+          ],
+          [
+            "in USD",
+            "$295K",
+            "$285K",
+            "$48K",
+            "$628K"
+          ]
+        ],
+        "label": null
+      },
+      {
+        "caption": "Table 2: Architecture Configurations of S3-DiT.",
+        "headers": [],
+        "rows": [
+          [
+            "Configuration",
+            "",
+            "S3-DiT",
+            ""
+          ],
+          [
+            "Total Parameters",
+            "",
+            "6.15B",
+            ""
+          ],
+          [
+            "Number of Layers",
+            "",
+            "30",
+            ""
+          ],
+          [
+            "Hidden Dimension",
+            "",
+            "3840",
+            ""
+          ],
+          [
+            "Number of Attention Heads",
+            "",
+            "32",
+            ""
+          ],
+          [
+            "FFN Intermediate Dimension",
+            "",
+            "10240",
+            ""
+          ],
+          [
+            "(dt,dh,dw)(d_{t},d_{h},d_{w})",
+            "",
+            "(32,48,48)(32,48,48)",
+            ""
+          ]
+        ],
+        "label": null
+      }
+    ],
+    "equations": [
+      {
+        "latex": "\\mathcal{L}=\\mathbb{E}_{t,x_{0},x_{1},y}[\\|u(x_{t},y,t;\\theta)-(x_{1}-x_{0})\\|^{2}],",
+        "mathml": "<math alttext=\"\\mathcal{L}=\\mathbb{E}_{t,x_{0},x_{1},y}[\\|u(x_{t},y,t;\\theta)-(x_{1}-x_{0})\\|^{2}],\" class=\"ltx_Math\" display=\"block\" id=\"S4.E1.m1\" intent=\":literal\"><semantics><mrow><mrow><mi class=\"ltx_font_mathcaligraphic\">ℒ</mi><mo>=</mo><mrow><msub><mi>𝔼</mi><mrow><mi>t</mi><mo>,</mo><msub><mi>x</mi><mn>0</mn></msub><mo>,</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><mi>y</mi></mrow></msub><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo stretchy=\"false\">[</mo><msup><mrow><mo stretchy=\"false\">‖</mo><mrow><mrow><mi>u</mi><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo stretchy=\"false\">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>y</mi><mo>,</mo><mi>t</mi><mo>;</mo><mi>θ</mi><mo stretchy=\"false\">)</mo></mrow></mrow><mo>−</mo><mrow><mo stretchy=\"false\">(</mo><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>−</mo><msub><mi>x</mi><mn>0</mn></msub></mrow><mo stretchy=\"false\">)</mo></mrow></mrow><mo stretchy=\"false\">‖</mo></mrow><mn>2</mn></msup><mo stretchy=\"false\">]</mo></mrow></mrow></",
+        "label": "(1)"
+      },
+      {
+        "latex": "\\mathcal{L}=\\mathbb{E}_{t,x_{0},x_{1},y}[\\|u(x_{t},y,t;\\theta)-(x_{1}-x_{0})\\|^{2}],",
+        "mathml": "<math alttext=\"\\mathcal{L}=\\mathbb{E}_{t,x_{0},x_{1},y}[\\|u(x_{t},y,t;\\theta)-(x_{1}-x_{0})\\|^{2}],\" class=\"ltx_Math\" display=\"block\" id=\"S4.E1.m1\" intent=\":literal\"><semantics><mrow><mrow><mi class=\"ltx_font_mathcaligraphic\">ℒ</mi><mo>=</mo><mrow><msub><mi>𝔼</mi><mrow><mi>t</mi><mo>,</mo><msub><mi>x</mi><mn>0</mn></msub><mo>,</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><mi>y</mi></mrow></msub><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo stretchy=\"false\">[</mo><msup><mrow><mo stretchy=\"false\">‖</mo><mrow><mrow><mi>u</mi><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo stretchy=\"false\">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><mi>y</mi><mo>,</mo><mi>t</mi><mo>;</mo><mi>θ</mi><mo stretchy=\"false\">)</mo></mrow></mrow><mo>−</mo><mrow><mo stretchy=\"false\">(</mo><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>−</mo><msub><mi>x</mi><mn>0</mn></msub></mrow><mo stretchy=\"false\">)</mo></mrow></mrow><mo stretchy=\"false\">‖</mo></mrow><mn>2</mn></msup><mo stretchy=\"false\">]</mo></mrow></mrow></",
+        "label": "(1)"
+      }
+    ],
+    "references": [],
+    "full_text": "## 1 Introduction\n\nThe field of text-to-image (T2I) generation has witnessed remarkable advancements in recent years, evolving from generating rudimentary textures to producing photorealistic imagery with complex semantic adherence podell2023sdxl; esser2024scaling; flux2023; qwenimage; seedream2025seedream; cao2025hunyuanimage; betker2023improving. However, as the capabilities of these models have scaled, their development and accessibility face significant barriers. The current landscape is increasingly characterized by two divergent trends: on one side, state-of-the-art commercial closed-source models – such as Nano Banana Pro nanopro and Seedream 4.0 seedream2025seedream – remain enclosed within “black boxes”, offering high performance but limited transparency or reproducibility. On the other side, open-source models, while fostering democratization, often resort to massive parameter scaling – approaching tens of billions of parameters (e.g., Qwen-Image qwenimage (20B), FLUX.2 (flux-2-2025) (32B) and Hunyuan-Image-3.0 cao2025hunyuanimage (80B) – imposing prohibitive computational costs for both training and inference. In this context, distilling synthetic data from proprietary models has emerged as an appealing shortcut to train high-performing models at lower cost, becoming a prevalent approach for resource-constrained academic research chen2023pixart; gao2024lumin-t2x. However, this strategy risks creating a closed feedback loop that may lead to error accumulation and data homogenization, potentially hindering the emergence of novel visual capabilities beyond those already present in the teacher models.\n\nIn this work, we present Z-Image, a powerful diffusion transformer model that challenges both the “scale-at-all-costs” paradigm and the reliance on synthetic data distillation. We demonstrate that neither approach is necessary to develop a top-tier image generation model. Instead, we introduce the first comprehensive end-to-end solution that systematically optimizes every stage of the model lifecycle – from data curation and architecture design to training strategies and inference acceleration – enabling efficient, low-cost development on purely real-world data without distilling results from other models.\n\nMost notably, this methodological efficiency allows us to complete the entire training workflow with remarkably low computational overhead. As detailed in Table 1, the complete training pipeline for Z-Image requires only 314K H800 GPU hours, translating to approximately $628K at current market rates (about $2 per GPU hour leadergpu2025pricing). In a landscape where leading models often demand orders of magnitude more resources, this modest investment demonstrates that principled design can effectively rival brute-force scaling.\n\nThis breakthrough in cost-efficiency is underpinned by a systematic methodology built on four pillars:\n\nEfficient Data Infrastructure: In resource-constrained scenarios, an efficient data infrastructure is pivotal; it serves to maximize the rate of knowledge acquisition per unit of time – thereby accelerating training efficiency – while simultaneously establishing the upper bound of model capabilities. To achieve this, we introduce a comprehensive Data Infrastructure composed of four synergistic modules: a Data Profiling Engine for multi-dimensional feature extraction, a Cross-modal Vector Engine for semantic deduplication and targeted retrieval, a World Knowledge Topological Graph for structured concept organization, and an Active Curation Engine for closed-loop refinement. By granularly profiling data attributes and orchestrating the training distribution, we ensure that the “right data” is aligned with the “right stage” of model development. This infrastructure maximizes the utility of real-world data streams, effectively eliminating computational waste arising from redundant or low-quality samples.\n\nEfficient Architecture: Inspired by the remarkable scalability of decoder-only architectures in large language models brown2020language, we propose a Scalable Single-Stream Multi-Modal Diffusion Transformer (S3-DiT). Unlike dual-stream architectures that process text and image modalities in isolation, our design facilitates dense cross-modal interaction at every layer. This high parameter efficiency enables Z-Image to achieve superior performance within a compact 6B parameter size, significantly lowering the hardware requirements for both training and deployment. The compact model size is also made possible in part by our use of a prompt enhancer (PE) to augment the model’s complex world knowledge comprehension and prompt understanding capabilities, further mitigating the limitations of the modest parameter count. Furthermore, this early-fusion transformer architecture ensures superior versatility by treating tokens from different modalities uniformly – including text tokens, image VAE tokens, and image semantic tokens – enabling seamless handling of diverse tasks such as text-to-image generation and image-to-image editing within a unified framework.\n\nEfficient Training Strategy: We design a progressive training curriculum composed of three strategic phases: (1) Low-resolution Pre-training, which bootstraps the model to acquire foundational visual-semantic alignment and synthesis knowledge at a fixed 2562256^{2} resolution. (2) Omni-pre-training, a unified multi-task stage that consolidates arbitrary-resolution generation, text-to-image synthesis, and image-to-image manipulation. By amortizing the heavy pre-training budget across these diverse capabilities, we eliminate the need for separate, resource-intensive stages. (3) PE-aware Supervised Fine-tuning, a joint optimization paradigm where Z-Image is fine-tuned using PE-enhanced captions. This ensures seamless synergy between the Prompt Enhancement module and the diffusion backbone without incurring additional LLM training costs, thereby maximizing the overall development efficiency of the Z-Image system.\n\nEfficient Inference: We present Z-Image-Turbo, which delivers exceptional aesthetic alignment and high-fidelity visual quality in only 8 Number of Function Evaluations (NFEs). This performance is unlocked by the synergy of two key innovations: Decoupled DMD liu2025decoupled, which explicitly disentangles the quality-enhancing and training-stabilizing roles of the distillation process, and DMDR jiang2025dmdr, which integrates Reinforcement Learning by employing the distribution matching term as an intrinsic regularizer. Together, these techniques enable highly efficient generation without the typical trade-off between speed and quality.\n\nBuilding upon this robust foundation and efficient workflow, we have successfully derived two specialized variants that address distinct application needs. First, our few-shot distillation scheme with reinforcement learning yields Z-Image-Turbo, an accelerated model that achieves exceptional aesthetic alignment in just 8 NFEs. It offers sub-second inference111FlashAttention-3 shah2024flashattention and torch.compile ansel2024pytorch is necessary for achieving sub-second inference latency. latency on enterprise GPUs and fits within the memory constraints of consumer-grade hardware (<16GB VRAM). Second, leveraging the multi-task nature of our omni-pre-training, we introduce Z-Image-Edit, a model specialized for precise instruction-following image editing.\n\nExtensive qualitative and quantitative experiments demonstrate the superiority of the Z-Image family. As illustrated in Figure 1 and Figure 2, Z-Image delivers strong capabilities of photorealistic generation and exceptional bilingual (Chinese/English) text rendering, matching the visual fidelity of much larger models. Figure 3 showcases the capabilities of Z-Image-Edit, highlighting its precise adherence to editing instructions. Furthermore, qualitative comparisons in Figure 4 and Section 5.3 reveal that our model rivals top-tier commercial systems, proving that state-of-the-art results are achievable with significantly reduced computational overhead. We publicly release our code, weights, and online demo to foster the development of accessible, budget-friendly generative models.\n\n## 2 Data Infrastructure\n\nWhile the remarkable capabilities of state-of-the-art text-to-image models are underpinned by large-scale training data, achieving optimal performance under constrained computational resources necessitates a paradigm shift from data quantity to data efficiency. Simply scaling the dataset size often leads to diminishing returns; instead, an efficient training pipeline requires a data infrastructure that maximizes the information gain per computing unit. To this end, an ideal data system must be strictly curated to be conceptually broad yet non-redundant, exhibit robust multilingual text-image alignment, and crucially, be structured for dynamic curriculum learning, ensuring that the data composition evolves to match the model’s training stages. To realize this, we have designed and implemented an integrated Efficient Data Infrastructure. Far from a static repository, this system operates as a dynamic engine architected to maximize the rate of knowledge acquisition within a fixed training budget. As the cornerstone of our pipeline, this infrastructure is composed of four core, synergistic modules:\n\nData Profiling Engine: This module serves as the quantitative foundation for our data strategy. It extracts and computes a rich set of multi-dimensional features from raw data, spanning low-level physical attributes (e.g.image metadata, clarity metrics) to high-level semantic properties (e.g., anomaly detection, textual description). These computed profiles are not merely for basic filtering; they are the essential signals used to quantify data complexity and quality, enabling the programmatic construction of curricula for our dynamic learning stages.\n\nCross-modal Vector Engine: Built on billions of embeddings, this module is the engine for ensuring efficiency and diversity. It directly supports our goal of a non-redundant dataset through large-scale semantic deduplication. Furthermore, its cross-modal search capabilities are critical for diagnosing and remediating model failures. This allows us to pinpoint and prune data responsible for specific failure cases and strategically sample to fill conceptual gaps.\n\nWorld Knowledge Topological Graph: This structured knowledge graph provides the semantic backbone for the entire infrastructure. It directly underpins our goal of conceptual breadth by organizing knowledge hierarchically. Crucially, this topology functions as a semantic compass for data curation. It allows us to identify and fill conceptual voids in our dataset by traversing the graph to find underrepresented entities. Furthermore, it provides the structured framework needed to precisely rebalance the data distribution across different concepts during training, ensuring a more efficient and comprehensive learning process.\n\nActive Curation Engine: This module operationalizes our infrastructure into a truly dynamic, self-improving system. It serves two primary, synergistic functions. First, it acts as a frontier exploration engine, employing automatic sampling to identify concepts on which the model performs poorly or lacks knowledge (“hard cases\"). Second, it drives a closed-loop data annotation pipeline. This ensures that every iteration not only expands conceptual breadth of the dataset with high-value knowledge but also continuously refines the data quality, maximizing the learning efficiency of the entire training process.\n\nCollectively, these components forge a robust data infrastructure that not only fuels the training of text-to-image models but also establishes a versatile infrastructure for broader multimodal model training. Leveraging this system, we successfully facilitate the training of various critical components, including captioners, reward models, and our image editing model (i.e., Z-Image-Edit). In particular, we construct a dedicated data pipeline specifically for Z-Image-Edit upon this infrastructure, the details of which are elaborated in Section 2.5.\n\n### 2.1 Data Profiling Engine\n\nThe Data Profiling Engine is engineered to systematically process a massive, uncurated data pool, comprising large-scale internal copyrighted collections. It computes a comprehensive suite of multi-dimensional features for each image-text pair, enabling principled data curation. Recognizing that different data sources exhibit unique biases, our engine supports source-specific heuristics and sampling strategies to ensure a balanced and high-quality training corpus. The profiling process is structured across several key dimensions:\n\n### 2.2 Cross-modal Vector Engine\n\nWe enhance the de-duplication method proposed in Stable Diffusion 3 esser2024scaling, reformulating it as a scalable, graph-based community detection task. Addressing the severe scalability bottleneck of the original r​a​n​g​e​_​s​e​a​r​c​hrange\\_search function, we substitute it with a highly efficient k-nearest neighbor (k-NN) s​e​a​r​c​hsearch function. We construct a proximity graph from the k-NN distances and subsequently apply the community detection algorithm traag2019louvain. This methodology closely approximates the original algorithm’s output for a sufficiently large k while drastically reducing time complexity. Our fully GPU-accelerated cugraph_rapidsai pipeline achieves a processing rate of approximately 8 hours per 1 billion items on 8 H800s, encompassing index construction and 100-NN querying. This approach not only ensures a non-redundant dataset by identifying dense clusters for effective de-duplication but also extracts semantic structures via modularity levels, facilitating fine-grained data balancing.\n\nFurthermore, we constructed an efficient retrieval pipeline leveraging multimodal features yang2022chinese combined with a state-of-the-art index algorithm ootomo2024cagra. This system’s cross-modal search capabilities are critical for both data curation and active model remediation. Beyond identifying distributional voids for strategically sampling to fill conceptual gaps – thereby enabling targeted augmentation for a balanced pre-training distribution – this engine is instrumental in diagnosing model failures. By querying the system with failure cases (e.g., problematic generated images or text prompts), we can pinpoint and prune the underlying data clusters responsible for the erroneous behavior. This iterative refinement process, targeting both data gaps and model failures, ensures dataset robustness and is pivotal for sourcing high-quality candidates for complex downstream tasks.\n\n### 2.3 World Knowledge Topological Graph\n\nThe construction of our knowledge graph follows a three-stage process. Initially, we build a comprehensive but redundant knowledge graph from all Wikipedia entities and their hyperlink structures. To refine this graph, we employ a two-pronged pruning strategy: first, centrality-based filtering removes nodes with exceptionally low PageRank page1999pagerank scores, which represent isolated or seldom-referenced concepts; second, visual generatability filtering uses a VLM to discard abstract or ambiguous concepts that cannot be coherently visualized. Subsequently, to address the limited conceptual coverage of the pruned graph, we augment it by leveraging a large-scale internal dataset of captioned images. We extract tags and corresponding text embeddings from all available captions. Inspired by vo2024automatic, we then perform an automatic hierarchical strategy on these embeddings. Each parent node is named by using a VLM to summarize its child nodes. This not only supplements the graph with new concept nodes but also organizes them into a structured taxonomic tree, significantly enhancing the structural integrity of the graph. In the final stage, we perform weight assignment and dynamic expansion to align the graph with practical applications. This involves manually curating and up-weighting high-frequency concepts from user prompts, and proactively integrating novel, trending concepts not yet present in our data pool to maintain the relevance and timeliness of the graph.\n\nIn application, this graph underpins our semantic-level balanced sampling strategy. We map the tags within each training caption to their corresponding nodes in the knowledge graph. By considering both the BM25 robertson2009probabilistic score of a tag and its hierarchical relationships (i.e., parent-child links) within the graph, we compute a semantic-level sampling weight for each data point. This weight then guides our data engine to perform principled, staged sampling from the data pool, enabling fine-grained control over the training data distribution.\n\n### 2.4 Active Curation Engine\n\nTo systematically elevate data quality and address long-tail distribution challenges, we deploy a comprehensive Active Curation Engine (Figure 5). This framework incorporates a filtering tool and Z-Image as a diagnostic generative prior. The pipeline begins by processing uncurated data through cross-modal embedding and deduplication, followed by rule-based filtering to eliminate low-quality samples.\n\nTo support the continuous evolution of Z-Image, we establish a human-in-the-loop active learning cycle (Figure 6) where the reward model and captioner are progressively optimized. In this pipeline, we first employ the topology graph (Section 2.3) and the initial reward model to curate a balanced subset from the unlabeled media pool. The current captioner and reward model then assign pseudo-labels to these samples. A hybrid verification mechanism – comprising both human and AI verifiers – verifies these proposals; rejected samples trigger a manual correction phase by human experts to refine captions or scores. This high-quality annotated data is then used to retrain the captioner and reward model, thereby creating a virtuous cycle of our whole data infrastructure enhancement.\n\n### 2.5 Efficient Construction of Editing Pairs with Graphical Representation\n\nCollecting editing pairs that exhibits precise instruction following is challenging, owing to the requirement of consistency maintaining and the diverse and complex nature of editing operations. Through scalable and controllable strategies as shown in Figure 7, we construct a large-scale training corpus from diverse sources.\n\nMixed Editing with Expert Models. To guarantee broad task coverage, we begin by curating a diverse taxonomy of editing tasks, and then leverage task-specific expert models to synthesize high-quality training data for each category. To improve the training efficiency, we construct mixed-editing data, where multiple editing actions are integrated into one editing pair. Thus, the model can enhance its ability in multiple editing tasks from only a single composite pair, instead of relying on multiple ones.\n\nEfficient Graphical Representation. For an input image, we synthesize multiple edited versions corresponding to different editing tasks, enabling us to further scale the training data at zero cost through arbitrary pairwise combination li2025visualcloze (e.g., 2(N+12)\\tbinom{N+1}{2} pairs are constructed from one input image and its NN edited versions). Apart from scaling the quantity, this strategy 1) creates mixed-editing training data by combining two edited versions to enhance the training efficiency, and 2) yields inverse pairs to improve data quality, i.e., transforming a real, undistorted input image to an output image.\n\nPaired Images from Videos. Constructing image editing pairs from predefined tasks suffers from limited diversity. To overcome this issue, we leverage naturally grouped images collected from a large scale video frames in our media pool. These images, by sharing inherent relatedness (e.g., common subjects, scenes, or styles), implicitly define complex editing relationships among themselves. Building on this, we refine the data by calculating the cosine similarity between image embeddings using CN-CLIP yang2022chinese, allowing us to filter for pairs with high semantic relevance within each image group. The resulting dataset of video frame pairs offers three key advantages: 1) high task diversity, 2) inherent coupling of multiple edit types (e.g., simultaneous changes in human pose and background), and 3) superior scalability.\n\nRendering for Text Editing. The acquisition of high-quality training data for text editing presents substantial challenges, where natural images suffer from the scarcity and imbalance of textual content, and text editing requires paired samples with precise operation annotations. To address these challenges, we develop a controllable text rendering system qwenimage that grants us precise control over not only the textual content but also its visual attributes, such as font, color, size, and position. This approach enables us to systematically generate a large-scale dataset of paired images, where the ground-truth editing instruction are known by the rendering operation, thereby directly overcoming the aforementioned data limitations.\n\n## 3 Image Captioner\n\nWe build an all-in-one image captioner, Z-Captioner, by incorporating multiple types of image caption. As revealed in previous works lu2025omnicaptioner, different captioning tasks can benefit each other as they share the same goal of understanding and depicting images. Our model is designed not only to describe visual elements, but also to leverage extensive world knowledge to interpret the semantic context of the image. The integration of world knowledge is particularly critical for the downstream text-to-image synthesis task, as it enables the model to accurately render images involving specific named entities. Figure 8 shows our pipeline for generating text-to-image captions and image editing instructions.\n\n### 3.1 Detailed Caption with OCR Information\n\nFirst, we specially emphasize that according to our experiments, including explicit OCR information in image captions is inextricably bound with accurate text rendering in the generated images. Therefore, we employ a way that shares the same spirit as Chain-of-Thought (CoT) wei2022chain, by first explicitly recognizing all optical characters in the image and then generating a caption based on the OCR results. This effectively mitigates missing texts compared to directly generating a caption that encapsulates everything, especially for the cases where texts are very long/dense. In addition, we force the OCR results to remain in their original languages without any translation, avoiding them being falsely rendered in their translated languages.\n\n### 3.2 Multi-Level Caption with World Knowledge\n\nWe design five different types of image captions in total, including long, medium and short captions, as well as tags and simulated user prompts. With the data infrastructure in Section 2, we include world knowledge in all five types of captions by performing image captioning conditioned on meta information. This significantly alleviates hallucinations when our captioner identifies and names specific entities such as public figures, famous landmarks, or known events.\n\nTo be specific, for relatively long captions, we include very dense information of the images, in order that the model could learn a mapping from the text to the image as accurate as possible. These captions contain full OCR results as mentioned above, along with subjects, objects, background, location information, et al. We deliberately adopt a plain and objective linguistic style for our descriptions, strictly confining them to factual information observable in the image. By inhibiting subjective interpretations and imaginative associations, our purpose is to enhance data efficiency for the image generation task by eliminating non-essential information.\n\nOn the other hand, short captions, tags and simulated user prompts are designed for the model to adapt to real user prompts (which are usually short and unspecific) for better user experience. Notably, most of the simulated user instructions are incomplete prompts. They differ from short captions in that a short caption provides a relatively complete and comprehensive description of the entire image. In contrast, a short simulated prompt may mimic user behavior by focusing only on specific parts of interest to the user, while making no mention of the rest of the image.\n\n### 3.3 Difference Caption for Image Editing\n\nDifference caption is a concise editing instruction specifying the transformation from a source to a target image. To generate this, we employ a three-step CoT process that systematically breaks down the comparative task zhuo2025factuality.\n\nStep1: Detailed Captioning. We first generate a comprehensive, OCR-inclusive caption for both the source and target images respectively. This step provides a structured, detailed representation of each image’s content.\n\nStep2: Difference Analysis. The model then performs a comparative analysis, leveraging both the raw images and their generated captions, to tell all discrepancies from visual and textual perspectives.\n\nStep3: Instruction Synthesis. Finally, the model generates a concise editing instruction based on the identified differences.\n\nThis step‑by‑step process helps the model create clear and useful instructions by moving from understanding, to comparing, and finally to generating the instructions.\n\n## 4 Model Training\n\nThis section presents the complete training pipeline of Z-Image and Z-Image-Edit. We begin by introducing our Scalable Single-Stream Diffusion Transformer (S3-DiT) architecture (Section 4.1) and training efficiency optimizations (Section 4.2), followed by a multi-stage training process: pre-training (Section 4.3), supervised fine-tuning (Section 4.4), few-step distillation (Section 4.5), and reinforcement learning with human feedback (Section 4.6). Finally, we describe the continued training strategy for image editing capabilities (Section 4.7) and our reasoning-enhanced prompt enhancer (Section 4.8). The overall training pipeline is summarized in Figure 11. And in Figure 12, we present intermediate generation results throughout Z-Image’s training process to demonstrate the benefits contributed by each stage.\n\n### 4.1 Architecture\n\nEfficiency and stability are the core objectives guiding the design of Z-Image. To achieve this, we employ the lightweight Qwen3-4B yang2025qwen3 as the text encoder, leveraging its bilingual proficiency to align complex instructions with visual content. For image tokenization, we utilize the Flux VAE flux2023 selected for its proven reconstruction quality. Exclusively for editing tasks, we augment the architecture with SigLIP 2 tschannen2025siglip to capture abstract visual semantics from reference images. Inspired by the scaling success of decoder-only models, we adopt a Single-Stream Multi-Modal Diffusion Transformer (MM-DiT) paradigm esser2024scaling. In this setup, text, visual semantic tokens, and VAE image tokens are concatenated at the sequence level to serve as a unified input stream, maximizing parameter efficiency compared to dual-stream approaches esser2024scaling; qwenimage. We employ 3D Unified RoPE qin2025lumina; wu2025omnigen2 to model this mixed sequence, wherein image tokens expand across spatial dimensions and text tokens increment along the temporal dimension. Crucially, for editing tasks, the reference image tokens and target image tokens are assigned aligned spatial RoPE coordinates but are separated by a unit interval offset in the temporal dimension. Additionally, different time-conditioning values are applied to the reference and target images to distinguish between clean and noisy images.\n\nAs illustrated in Figure 10, the specific architecture of our S3-DiT (Scalable Single-Stream DiT) commences with lightweight modality-specific processors, each composed of two transformer blocks for initial modal alignment. Subsequently, tokens enter the unified single-stream backbone. To ensure training stability, we implement QK-Norm to regulate attention activations karras2024analyzing; luo2018cosine; gidaris2018dynamic; nguyen2023enhancing and Sandwich-Norm to constrain signal amplitudes at the input and output of each attention / FFN blocks ding2021cogview; gao2024lumina-next. For conditional information injection, input condition vectors are projected into scale and gate parameters to modulate the normalized inputs and outputs of both Attention and FFN layers. To reduce parameter overhead, this projection is decomposed into a low-rank pair: a shared, layer-agnostic down-projection layer followed by layer-specific up-projection layers. Finally, RMSNorm zhang2019root is uniformly utilized for all the aforementioned normalization operations.\n\n### 4.2 Training Efficiency Optimization\n\nTo optimize training efficiency, we implemented a multi-faceted strategy targeting both computational and memory overheads.\n\nFor distributed training, we employed a hybrid parallelization strategy. We applied standard Data Parallelism (DP) to the VAE and Text Encoder, as they remain frozen and incur minimal memory footprint. In contrast, for the large DiT model, where optimizer states and gradients consume substantial memory, we utilized FSDP2 zhao2023pytorch to effectively shard these overheads across GPUs. Furthermore, we implemented gradient checkpointing across all DiT layers. This technique trades an acceptable increase in computational cost for significant memory savings, enabling larger batch sizes and improved overall throughput. To further accelerate computation and optimize memory usage, the DiT blocks were compiled using torch.compile, a just-in-time (JIT) compiler ansel2024pytorch.\n\nIn addition to system-level optimizations, we addressed inefficiencies arising from mixed-resolution training. Grouping samples with significantly different sequence lengths into a single batch typically results in excessive padding, which significantly impedes overall training speed. To mitigate this, we designed a sequence length-aware batch construction strategy. Prior to training, we estimate the sequence length of each sample based on the resolution (height and width) recorded in the metadata. The sampler then groups samples with similar sequence lengths into the same batch, thereby minimizing computational waste. Crucially, we additionally employ a dynamic batch sizing mechanism: smaller batch sizes are assigned to long-sequence batches to prevent Out-Of-Memory (OOM) errors, while larger batch sizes are used for short sequences to avoid resource vacancy. This approach ensures maximal hardware utilization across varying resolutions.\n\n### 4.3 Pre-training\n\nZ-Image is trained using the flow matching objective lipman2022flow; liu2022flow, where noised inputs are first constructed through linear interpolation between Gaussian noise x0x_{0} and the original image x1x_{1}, i.e., xt=t⋅x1+(1−t)⋅x0x_{t}=t\\cdot x_{1}+(1-t)\\cdot x_{0}. The model is then trained to predict the velocity of the vector field that defines the path between them, i.e., vt=x1−x0v_{t}=x_{1}-x_{0}. The training objective can be formulated as:\n\nWhere θ\\theta as the learnable parameters and yy as the conditional embedding. Following SD3 esser2024scaling, we employ the logit-normal noise sampler to concentrate the training process on intermediate timesteps. Additionally, to account for the variations in Signal-to-Noise Ratio (SNR) arising from our multi-resolution training setup, we adopt the dynamic time shifting strategy as used in Flux flux2023. This ensures that the noise level is appropriately scaled for different image resolutions, leading to more effective training.\n\nThe pre-training of Z-Image can be broadly divided into two phases: low-resolution pre-training and omni-pre-training.\n\nLow-resolution Pre-training. This phase consists of a single stage, conducted exclusively at a 2562256^{2} resolution on the text-to-image generation task. The primary emphasis of this stage is on efficient cross-modal alignment and knowledge injection – equipping the model with the capability to generate a diverse range of concepts, styles, and compositions, which is consistent with the initial stage of conventional multi-stage training protocols. As shown in Figure 1, this phase accounts for over half of our total pre-training compute. This allocation is based on the rationale that the majority of the model’s foundational visual knowledge (e.g., Chinese text rendering) is acquired during this low-resolution training stage.\n\nOmni-pre-training. The “omni” here signifies three key aspects:\n\nArbitrary-Resolution Training: We design an arbitrary-resolution training strategy in which the original image resolution is mapped to a predefined training resolution range through a resolution-mapping function. The model is then trained on images with diverse resolutions and aspect ratios. This enables the learning of cross-scale visual information, mitigates information loss caused by downsampling to a fixed resolution, and improves overall data efficiency.\n\nJoint Text-to-Image and Image-to-Image Training: We integrate the image-to-image task into the pre-training framework. By leveraging the substantial compute budget available during pre-training, we can effectively exploit large-scale, naturally occurring, and weakly aligned image pairs, as discussed in Section 2.5. Learning the relationships between natural image pairs provides a strong initialization for downstream tasks such as image editing. Importantly, we observe that this joint pre-training scheme does not introduce any noticeable performance degradation on the text-to-image task.\n\nMulti-level and Bilingual Caption Training: It is widely recognized that high-quality captions are crucial for training text-to-image models betker2023improving. To ensure both bilingual understanding and strong native prompt-following capability, we employ Z-Captioner to generate bilingual, multi-level synthetic captions (including long, medium, and short descriptions, as well as tags and simulated user prompts). In addition, the original textual metadata associated with each image is incorporated with a small probability to further enhance the model’s acquisition of world knowledge. The use of captions at different granularities and from diverse perspectives provides broad mode coverage, which is beneficial for subsequent stages of training. Moreover, for image-to-image tasks, we randomly sample either the target image’s caption or the pairwise difference caption with a certain probability, corresponding to reference-guided image generation and multi-task image editing, respectively.\n\nWorking with our data infrastructure, the omni-pre-training phase is conducted in multiple stages. Upon completion of the final stage, the model becomes capable of generating images at arbitrary resolutions up to the 1k-1.5k range and can condition its output on both image and text inputs. This provides a suitable starting point for the subsequent training of Z-Image and Z-Image-Edit.\n\n### 4.4 Supervised Fine-Tuning (SFT)\n\n### 4.5 Few-Step Distillation\n\nThe goal of the Few-Step Distillation stage is to reduce the inference time of our foundational SFT model, achieving the efficiency demanded by real-world applications and large-scale deployment. While our 6B foundational model represents a significant leap in efficiency compared to larger counterparts, the inference cost remains non-negligible. Due to the inherent iterative nature of diffusion models, our standard SFT model requires approximately 100 Number of Function Evaluations (NFEs) to generate high-quality samples using Classifier-Free Guidance (CFG) ho2022classifier. To bridge the gap between generation quality and interactive latency, we implemented a few-step distillation strategy.\n\nFundamentally, the distillation process involves teaching a student model to mimic the teacher’s denoising dynamics across fewer timesteps along its sampling trajectory. The core challenge lies in reducing the inherent uncertainty of this trajectory, allowing the student to “collapse” its probabilistic path into a deterministic and highly efficient inference process. Therefore, the key to enable a stable few-step integrator is to meticulously control the distillation process. We initially selected the Distribution Matching Distillation (DMD) yin2024improved; dmd paradigm due to its promising performance in academic works. However, in practice, we encountered persistent artifacts such as the loss of high-frequency details and noticeable color shifts – issues that have been increasingly documented by the community. These observations signaled a need for algorithmic refinement. Through a deeper exploration of the distillation mechanism, we gained new insights into the underlying dynamics of DMD, leading to two key technical advancements: Decoupled DMD liu2025decoupled and DMDR jiang2025dmdr. We refer interested readers to the respective academic papers for full technical details. Below, we introduce the practical application of these techniques in building Z-Image-Turbo.\n\n### 4.6 Reinforcement Learning with Human Feedback (RLHF)\n\nFollowing the previous stages, the model has acquired strong foundational capabilities but may still exhibit inconsistencies in aligning with nuanced human preferences. To bridge this gap, we introduce a comprehensive post-training framework leveraging Reinforcement Learning with Human Feedback (RLHF). This framework hinges on a powerful, multi-dimensional reward model, which provides targeted feedback for online optimization. Guided by these feedback signals, our approach is structured into two sequential stages: an initial offline alignment phase using Direct Preference Optimization (DPO) rafailov2023direct, followed by an online refinement phase with Group Relative Policy Optimization (GRPO) shao2024deepseekmathpushinglimitsmathematical; flowgrpo. This two-stage strategy allows us to first efficiently instill robust adherence to objective standards and then leverage the fine-grained signals from our reward model for optimizing more subjective qualities. As illustrated in Figure 14, this comprehensive process yields substantial improvements in photorealism, aesthetic quality, and instruction following.\n\n### 4.7 Continued Training for Image Editing\n\nStarting from the base model, the continued pre-training for image editing consists of two stages, as shown in Figure 10. In the continued pre-training stage, we train the model with our constructed editing pairs (see Section 2.5), together with our text-to-image SFT data to ensure high image quality. We first train the whole amount of editing data in resolution of 5122512^{2} for a few thousand steps for quick adaptation to editing tasks, and then increase the image resolution to 102421024^{2} for high generation quality. Because image editing data pairs are expensive and difficult to acquire, their total volume is significantly smaller and far less diverse than that of text-to-image data. Therefore, we suggest a relatively higher ratio of text-to-image data (e.g., text-to-image:image-to-image =4:1=4:1) to avoid performance degradation during training.\n\nIn the following SFT stage, a task-balanced, high-quality subset of the training data is manually constructed to further improve the model’s overall performance, especially its instruction following ability. However, synthetic data (e.g., the rendered text data for text editing), though easy-to-acquire and guaranteed to be 100% accurate in terms of instruction following, are far from the distribution of real-world user input, and are thus heavily downsampled in this final training stage.\n\n### 4.8 Prompt Enhancer with Reasoning Chain\n\nDue to limited model size (6B parameters), Z-Image exhibits limitations in world knowledge, intent understanding, and complex reasoning. However, it serves as a powerful text decoder capable of translating detailed prompts into realistic images. To address the cognitive gaps, we propose equipping Z-Image with a Prompt Enhancer (PE), powered by system prompt and a pretrained VLM, to improve its reasoning and knowledge capabilities.\n\nDistinct from other methods, we keep the large VLM fixed during alignment. Instead, we process all input prompts (and input images for Z-Image-Edit) through our PE model during the Supervised Fine-Tuning (SFT) stage. This strategy ensures that Z-Image aligns effectively with the Prompt Enhancer during SFT. Furthermore, we identify the structured reasoning chain as a key factor for injecting reasoning and world knowledge. As shown in Figure 15, without reasoning, the PE merely renders coordinate text onto the image when given geolocation data; with reasoning, it infers the location (e.g., West Lake) to generate the correct scene. Similarly, in generating journal-style instructions, the lack of reasoning leads to monotonous outputs, whereas the reasoning-enhanced model enriches the result by generating specific illustrations for each step.\n\n## 5 Performance Evaluation\n\n### 5.1 Human Preference Evaluation\n\n### 5.2 Quantitative Evaluation\n\nTo comprehensively evaluate the generation and editing capabilities of Z-Image and its variants (Z-Image-Turbo and Z-Image-Edit), we conducted extensive experiments across multiple authoritative benchmarks. These evaluations cover general image generation, fine-grained instruction following, text rendering in both English and Chinese, and instruction-based image editing.\n\n### 5.3 Qualitative Evaluation\n\nTo further demonstrate the visual generation capacity of Z-Image 444In the section, all results of Z-Image are generated by our Turbo version., we first give the qualitative comparison against state-of-the-art open-source models (Lumina-Image 2.0 qin2025lumina, Qwen-Image qwenimage, HunyuanImage 3.0 cao2025hunyuanimage, and FLUX 2 dev flux-2-2025) and close-source models (Imagen 4 Ultra google2025imagen4, Seedream 4.0 seedream2025seedream and Nano Banana Pro nanopro). We then show the editing capacity of our Z-Image-Edit. We next show the examples of how reasoning capacity and world knowledge are injected by our prompt enhancer. We finally show that the emerging multi-lingual and multi-cultural understanding capacity of our Z-Image.\n\n## 6 Conclusion\n\nIn this report, we introduce the Z-Image series, a suite of high-performance 6B-parameter models built upon a Scalable Single-Stream Diffusion Transformer (S3-DiT). Challenging the prevailing “scale-at-all-costs” paradigm, we propose a holistic end-to-end solution anchored by four strategic pillars: (1) a curated, efficient data infrastructure; (2) a scalable single-stream architecture; (3) a streamlined training strategy; and (4) advanced optimization techniques for high-quality and efficient inference, encompassing PE- aware supervised fine-tuning, few-step distillation, and reward post-training.\n\nThis synergy allows us to complete the entire workflow within 314K H800 GPU hours at a total cost of under $630K, delivering top-tier photorealistic synthesis and bilingual text rendering. Beyond the robust base model, our pipeline yields Z-Image-Turbo, which enables sub-second inference (<1s) on an enterprise-grade H800 GPU and fits comfortably within 16G VRAM consumer-grade hardware. Additionally, we develop Z-Image-Edit, an editing model efficiently derived via our omni-pretraining paradigm. Through this pipeline, we provide the community with a blueprint for developing accessible, budget-friendly, yet state-of-the-art generative models.\n\n## 7 Authors\n\n### 7.1 Core Contributors555Core Contributors are listed in alphabetical order of the last name.\n\nHuanqia Cai, Sihan Cao, Ruoyi Du, Peng Gao, Steven Hoi, Zhaohui Hou, Shijie Huang, Dengyang Jiang, Xin Jin, Liangchen Li, Zhen Li, Zhong-Yu Li, David Liu, Dongyang Liu, Junhan Shi, Qilong Wu, Feng Yu, Chi Zhang, Shifeng Zhang, Shilin Zhou\n\n### 7.2 Contributors666Contributors are listed in alphabetical order of the last name.\n\nChenglin Cai, Yujing Dou, Yan Gao, Minghao Guo, Songzhi Han, Wei Hu, Yuyan Huang, Xu Li, Zefu Li, Heng Lin, Jiaming Liu, Linhong Luo, Qingqing Mao, Jingyuan Ni, Chuan Qin, Lin Qu, Jinghua Sun, Peng Wang, Ping Wang, Shanshan Wang, Xuecong Wang, Yi Wang, Yue Wang, Tingkun Wen, Junde Wu, Minggang Wu, Xiongwei Wu, Yi Xin, Haibo Xing, Xiaoxiao Xu, Ze Xu, Xunliang Yang, Shuting Yu, Yucheng Zhao, Jianan Zhang, Jianfeng Zhang, Jiawei Zhang, Qiang Zhang, Xudong Zhao, Yu Zheng, Haijian Zhou, Hanzhang Zhou\n",
+    "extracted_at": "2025-12-26 16:40:18.342842"
+  },
+  "classification": {
+    "paper_id": "2511.22699",
+    "category": "generative_models",
+    "category_name": "Generative Models",
+    "category_name_zh": "生成模型",
+    "confidence": 0.0,
+    "reasoning": "The paper discusses an efficient image generation foundation model, specifically Z-Image, which leverages a diffusion transformer. This aligns with the broader field of generative models, as it focuses on image generation rather than reinforcement learning or robotics. The title and abstract directly reference generative models, making this the most appropriate classification.",
+    "raw_response": "{\n  \"category\": \"generative_models\",\n  \"confidence\": 0.0,\n  \"reasoning\": \"The paper discusses an efficient image generation foundation model, specifically Z-Image, which leverages a diffusion transformer. This aligns with the broader field of generative models, as it focuses on image generation rather than reinforcement learning or robotics. The title and abstract directly reference generative models, making this the most appropriate classification.\"\n}",
+    "generated_at": "2025-12-26 16:40:54.002125"
+  },
+  "keywords": {
+    "paper_id": "2511.22699",
+    "keywords": [
+      "diffusion transformer",
+      "single-stream diffusion",
+      "image generation foundation model",
+      "large parameter scale",
+      "open-source image generation models",
+      "proprietary image generation systems",
+      "efficiency",
+      "high-performance image generation",
+      "diffusion model",
+      "parameter count"
+    ],
+    "keywords_zh": [
+      "扩散器",
+      "单流扩散",
+      "图像生成基础模型",
+      "大规模参数",
+      "开源图像生成模型",
+      "专有图像生成系统",
+      "高效",
+      "高性能图像生成",
+      "扩散模型"
+    ],
+    "raw_response": "{\n  \"keywords\": [\n    \"diffusion transformer\",\n    \"single-stream diffusion\",\n    \"image generation foundation model\",\n    \"large parameter scale\",\n    \"open-source image generation models\",\n    \"proprietary image generation systems\",\n    \"efficiency\",\n    \"high-performance image generation\",\n    \"diffusion model\",\n    \"parameter count\"\n  ],\n  \"keywords_zh\": [\n    \"扩散器\",\n    \"单流扩散\",\n    \"图像生成基础模型\",\n    \"大规模参数\",\n    \"开源图像生成模型\",\n    \"专有图像生成系统\",\n    \"高效\",\n    \"高性能图像生成\",\n    \"扩散模型\"\n  ]\n}",
+    "generated_at": "2025-12-26 16:40:56.897813"
+  },
+  "labels": {
+    "paper_id": "2511.22699",
+    "labels": [
+      "AI",
+      "image generation",
+      "diffusion model",
+      "open-source image generation models",
+      "efficient image generation foundation model"
+    ],
+    "labels_zh": [
+      "人工智能",
+      "图像生成",
+      "扩散模型",
+      "开源图像生成模型",
+      "高效图像生成基础模型"
+    ],
+    "raw_response": "{\n  \"labels\": [\"AI\", \"image generation\", \"diffusion model\", \"open-source image generation models\", \"efficient image generation foundation model\"],\n  \"labels_zh\": [\"人工智能\", \"图像生成\", \"扩散模型\", \"开源图像生成模型\", \"高效图像生成基础模型\"]\n}",
+    "generated_at": "2025-12-26 16:40:58.954475"
+  },
+  "comments": null,
+  "notion_page_id": null,
+  "notion_synced_at": null,
+  "created_at": "2025-12-26 18:13:32.001787",
+  "updated_at": "2025-12-26 18:13:32.001796"
+}

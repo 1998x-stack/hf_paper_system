@@ -1,0 +1,10 @@
+{
+  "paper_id": "2511.20785",
+  "category": "generative_models",
+  "category_name": "Generative Models",
+  "category_name_zh": "生成模型",
+  "confidence": 0.0,
+  "reasoning": "The paper introduces an end-to-end agentic framework for incentivizing 'Thinking with Long Videos' using multimodal data, directly addressing generative models' capabilities in handling complex multimodal inputs. The focus on multimodal interactions aligns with the broader category of generative models.",
+  "raw_response": "{\n  \"category\": \"generative_models\",\n  \"confidence\": 0.0,\n  \"reasoning\": \"The paper introduces an end-to-end agentic framework for incentivizing 'Thinking with Long Videos' using multimodal data, directly addressing generative models' capabilities in handling complex multimodal inputs. The focus on multimodal interactions aligns with the broader category of generative models.\"\n}",
+  "generated_at": "2025-12-26 16:45:50.303897"
+}

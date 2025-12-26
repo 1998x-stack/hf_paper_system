@@ -1,0 +1,1254 @@
+{
+  "paper_id": "2511.20785",
+  "title": "LongVT: Incentivizing \"Thinking with Long Videos\" via Native Tool Calling",
+  "authors": [
+    "Zuhao Yang∗,1,2,5, Sudong Wang∗,1,3,5, Kaichen Zhang∗,1,2,5, Keming Wu1,4,5, Sicong Leng2, Yifan Zhang1, Bo Li2,5, Chengwei Qin3, Shijian Lu🖂,2, Xingxuan Li🖂,1, Lidong Bing1 1MiroMind AI, 2NTU, 3HKUST(GZ), 4THU, 5LMMs-Lab Team Email Contact: {yang0756,zhan0564}@e.ntu.edu.sg, {swang886}@connect.hkust-gz.edu.cn"
+  ],
+  "abstract": "Large multimodal models (LMMs) have shown great potential for video reasoning with textual Chain-of-Thought. However, they remain vulnerable to hallucinations, especially when processing long-form videos where evidence is sparse and temporally dispersed. Inspired by how humans comprehend long videos—by first skimming globally and then examining relevant clips for details—we introduce LongVT, an end-to-end agentic framework that enables “Thinking with Long Videos” via interleaved Multimodal Chain-of-Tool-Thought. Specifically, we exploit LMMs’ inherent temporal grounding ability as a native video cropping tool to zoom in on a specific video clip and resample finer-grained video frames. This global-to-local reasoning loop continues until answers are grounded in retrieved visual evidence. Given the scarcity of fine-grained question-answering (QA) data for the long video reasoning task, we curate and will release a data suite named VideoSIAH to facilitate both training and evaluation. Specifically, our training dataset consists of 247.9K samples for tool-integrated cold-start supervised fine-tuning, 1.6K samples for agentic reinforcement learning, and 15.4K samples for agentic reinforcement fine-tuning, respectively. Our evaluation benchmark consists of 1,280 QA pairs that are carefully curated through a semi-automatic data pipeline with human-in-the-loop validation. With a meticulously designed three-stage training strategy and extensive empirical validation, LongVT consistently outperforms existing strong baselines across four challenging long-video understanding and reasoning benchmarks. Our codes, data, and model checkpoints are publicly available at https://github.com/EvolvingLMMs-Lab/LongVT.",
+  "hf_metadata": {
+    "paper_id": "2511.20785",
+    "title": "LongVT: Incentivizing \"Thinking with Long Videos\" via Native Tool Calling",
+    "url": "https://huggingface.co/papers/2511.20785",
+    "arxiv_url": "https://arxiv.org/abs/2511.20785",
+    "ar5iv_url": "https://ar5iv.labs.arxiv.org/html/2511.20785",
+    "thumbnail": "https://cdn-thumbnails.huggingface.co/social-thumbnails/papers/2511.20785.png",
+    "submitter": "mwxely",
+    "organization": {
+      "name": "LMMs-Lab",
+      "logo": "https://cdn-uploads.huggingface.co/production/uploads/62d3f7d84b0933c48f3cdd9c/RpVWux8y4hHjNO6guD6sp.png",
+      "url": "https://huggingface.co/lmms-lab"
+    },
+    "metrics": {
+      "upvotes": 153,
+      "comments": 7,
+      "downloads": null,
+      "github_stars": null
+    },
+    "has_video": false,
+    "month": "2025-12",
+    "scraped_at": "2025-12-26 08:33:08.438284"
+  },
+  "content": {
+    "paper_id": "2511.20785",
+    "title": "LongVT: Incentivizing “Thinking with Long Videos” via Native Tool Calling",
+    "authors": [
+      "Zuhao Yang∗,1,2,5, Sudong Wang∗,1,3,5, Kaichen Zhang∗,1,2,5, Keming Wu1,4,5, Sicong Leng2, Yifan Zhang1, Bo Li2,5, Chengwei Qin3, Shijian Lu🖂,2, Xingxuan Li🖂,1, Lidong Bing1 1MiroMind AI, 2NTU, 3HKUST(GZ), 4THU, 5LMMs-Lab Team Email Contact: {yang0756,zhan0564}@e.ntu.edu.sg, {swang886}@connect.hkust-gz.edu.cn"
+    ],
+    "affiliations": [],
+    "abstract": "Large multimodal models (LMMs) have shown great potential for video reasoning with textual Chain-of-Thought. However, they remain vulnerable to hallucinations, especially when processing long-form videos where evidence is sparse and temporally dispersed. Inspired by how humans comprehend long videos—by first skimming globally and then examining relevant clips for details—we introduce LongVT, an end-to-end agentic framework that enables “Thinking with Long Videos” via interleaved Multimodal Chain-of-Tool-Thought. Specifically, we exploit LMMs’ inherent temporal grounding ability as a native video cropping tool to zoom in on a specific video clip and resample finer-grained video frames. This global-to-local reasoning loop continues until answers are grounded in retrieved visual evidence. Given the scarcity of fine-grained question-answering (QA) data for the long video reasoning task, we curate and will release a data suite named VideoSIAH to facilitate both training and evaluation. Specifically, our training dataset consists of 247.9K samples for tool-integrated cold-start supervised fine-tuning, 1.6K samples for agentic reinforcement learning, and 15.4K samples for agentic reinforcement fine-tuning, respectively. Our evaluation benchmark consists of 1,280 QA pairs that are carefully curated through a semi-automatic data pipeline with human-in-the-loop validation. With a meticulously designed three-stage training strategy and extensive empirical validation, LongVT consistently outperforms existing strong baselines across four challenging long-video understanding and reasoning benchmarks. Our codes, data, and model checkpoints are publicly available at https://github.com/EvolvingLMMs-Lab/LongVT.",
+    "sections": [
+      {
+        "title": "1 Introduction",
+        "level": 2,
+        "paragraphs": [
+          "Understanding long-form videos (>>15 minutes) poses a major challenge in multimodal intelligence [9, 13, 51, 48]. Compared with short clips, long videos contain complex event structures and require sustained comprehension across thousands of frames, supporting tasks such as video question answering (QA) [23, 26, 2, 51, 48], temporal grounding [10, 18, 54, 34, 57], and dense captioning [65, 18, 14]. These capabilities further underpin real-world applications such as soccer event spotting [25] and long-range film understanding [38]. Recent LMMs [8, 24, 46, 49, 58] exhibit promising short video reasoning, yet most rely on the R1-style paradigm [11]—supervised fine-tuning (SFT) with textual Chain-of-Thought (CoT), followed by Group Relative Policy Optimization (GRPO)-based reinforcement learning (RL) [35]. Such pipelines remain largely language-centric, limiting visual reasoning and increasing hallucinations in long-video scenarios [59]. Moreover, their uniform sampling fails to adaptively capture key visual evidence, often missing fine-grained or decisive moments critical for long-video reasoning. This motivates our central question: Can LMMs reliably reason over long videos by performing human-like visual operations to guide their reasoning?",
+          "Let us consider the following scenario: a testee is asked to answer the question, “Which foot did the French player use to execute the volley, equalizing the score?” using only the silent video of a football match. Without audio, metadata, or timeline markers, the testee must rely purely on visual inspection. Based on common viewing habits, a human would typically jump through the video in coarse intervals, searching for strong visual indicators of a goal—such as crowd reactions, player celebrations, referee gestures, or scoreboard updates. After locating a likely scoring segment, the testee would rewind slightly and examine the surrounding frames more carefully to pinpoint the exact equalizing moment, and then verify the scoring foot using close-up shots. Notably, when we prompt two state-of-the-art proprietary LMMs (i.e., GPT-5 [42] and Gemini 2.5 Pro [5]) with the same task, the strategies they propose closely mirror this human-intuitive procedure (see Section 7).",
+          "As illustrated in Figure 1, the testee, seeking to save time, avoids scanning the entire video frame by frame. Instead, they first perform a coarse global skim and then zoom in on promising segments. When projected to the LMM setting, this global-to-local reasoning strategy enables models with limited context length to process extremely long videos effectively. To implement such a strategy, we design interleaved Multimodal Chain-of-Tool-Thought (iMCoTT) that enables LMMs to naturally interleave reasoning with on-demand temporal retrieval via dynamically selecting and re-inspecting interested video segments. Such LMM behaviors stem from their native temporal grounding capabilities, without an auxiliary expert model or external retriever. Our designed iMCoTT enables “looking again” by proposing a more robust time window, examining that snippet, and revising its hypothesis when necessary. Such capability helps reduce hallucinations and reveals more fine-grained details, akin to human self-reflection after realizing that an initially inspected segment was erroneous.",
+          "This human-inspired “Thinking with Long Videos” paradigm is naturally suitable for queries that either require aggregating clues across multiple shots or hinge on a brief and evidence-bearing segment within hours-long footage. Yet, the open-source community lacks training and evaluation data with such fine-grained queries: most public datasets emphasize general and high-level questions but rarely train and evaluate reasoning capability under a “Video Segment-In-A-Haystack” setting. We address this grand challenge by constructing VideoSIAH that comprises high-quality QA pairs and tool-augmented reasoning traces. VideoSIAH comprises 247.9K samples for SFT, 1.6K samples for agentic RL, and 15.4K samples for reinforcement fine-tuning (RFT), respectively. Besides, we curate a dedicated evaluation benchmark, VideoSIAH-Eval, comprising 1,280 QA pairs that have undergone human-in-the-loop validation [3], where each question’s supporting evidence lies within a narrow window relative to the full video duration.",
+          "In this paper, we introduce LongVT, an end-to-end agentic framework that elicits LMMs’ ability for “Thinking with Long Videos” via a three-stage training strategy with large-scale and high-quality Tool-augmented data from VideoSIAH. The first stage performs cold-start SFT that empowers the base LMM with three fundamental capabilities: (1) proposing a precise window for relevant event(s), (2) reasoning over densely resampled frames within the window, and (3) self-correcting when the window is suboptimal. The second stage adopts agentic RL for enhancing the model’s generalization over open-ended QA tasks. Unlike existing work that relies on answer-only rewards for video QA and IoU rewards for temporal grounding [8, 49], we design a joint answer-temporal grounding reward function that explicitly encourages exploratory rollouts with improved temporal localization while preserving answer correctness. The third stage leverages agentic RFT where the model is further optimized by utilizing filtered rollout traces distilled from its own RL-trained policy. This stage stabilizes agentic behaviors learned during RL and consolidates fine-grained temporal localization and multi-step reasoning.",
+          "The contributions of our work can be summarized in three major aspects. First, we introduce an end-to-end agentic paradigm that natively interleaves multimodal tool-augmented CoT with on-demand clip inspection over hours-long videos, thereby enabling LMMs to perform more effective and reliable long-video reasoning. Second, to facilitate training and evaluation of evidence-sparse long-video reasoning, we construct a scalable data pipeline that produces diverse and high-quality QAs and tool-integrated reasoning traces, and a dedicated benchmark under a video segment-in-a-haystack setting. Third, we conduct comprehensive ablations on data recipes, training strategies, and design choices, together with extensive analysis on training dynamics, establishing a state-of-the-art baseline for “Thinking with Long Videos” with invaluable insights."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "2 Related Work",
+        "level": 2,
+        "paragraphs": [],
+        "subsections": []
+      },
+      {
+        "title": "3 VideoSIAH: A Fine-Grained Data Suite for Evidence-Sparse Long-Video Reasoning",
+        "level": 2,
+        "paragraphs": [
+          "Long-video reasoning presents a fundamentally different challenge from previous video QA settings: LMMs must locate sparse, fine-grained, and causally decisive moments embedded within hours-long content. However, existing tool-augmented LMMs [39, 59] are mostly trained with coarse-grained and clip-level data. This mismatch leaves modern LMMs lacking the supervision needed to learn how temporal hypotheses are formed, verified, or revised—a critical yet underexplored capability for agentic long-video reasoning. Moreover, most existing video understanding benchmarks [9, 51, 48] only offer multiple-choice QAs, which can be solved without genuine temporal grounding and are vulnerable to dataset leakage or shortcut exploitation. Evidence and discussion can be found in Section 8. To fill this gap, we introduce VideoSIAH, a large-scale, diverse, and high-quality data suite that serves collectively as a training dataset capturing the reasoning dynamics required for segment-in-a-haystack question-answering, and a fine-grained evaluation benchmark, VideoSIAH-Eval, with human-in-the-loop validation for long-video open-ended question-answering."
+        ],
+        "subsections": [
+          {
+            "title": "3.1 Data Pipeline",
+            "level": 3,
+            "paragraphs": [
+              "As illustrated in Figure 2, VideoSIAH is curated through a semi-automatic, human-in-the-loop pipeline that constructs temporally grounded reasoning traces aligned with human cognitive processes during evidence-sparse long-video reasoning. We begin with automatic scene detection on long videos and merge consecutive segments shorter than 10 seconds to obtain semantically stable units for downstream QA generation. For each segment, Qwen2.5-VL-72B [1] generates detailed descriptions capturing salient objects, spatial relations, and evolving events. These captions serve as the semantic basis for generating temporally grounded QA pairs. Initial QAs are created from the captions, covering temporal events, spatial layouts, motion, object attributes, and scene transitions, ensuring broad coverage at scale.",
+              "To ensure quality, we employ two filtering stages: (1) text-based QA filtering, which removes low-quality or ill-posed QAs (e.g., answer leakage) using linguistic heuristics and model agreement; and (2) multimodal QA filtering, where GLM-4.5V [12] verifies answer consistency against the video segment, eliminating hallucinated and visually unsupported claims. Annotator feedback further refines prompting rules for QA generation, filtering, and iMCoTT construction. This prompt-feedback refinement loop boosts reliability without heavy manual annotation, yielding high-fidelity, temporally grounded, and scalable data."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "3.2 Dataset Curation",
+            "level": 3,
+            "paragraphs": [],
+            "subsections": []
+          },
+          {
+            "title": "3.3 Dataset Statistics",
+            "level": 3,
+            "paragraphs": [
+              "As shown in Table 1, VideoSIAH comprises 228,835 SFT samples with normal (non-tool) CoT annotation, 19,161 tool-augmented SFT samples, and 17,020 instances used for RL and RFT. In the SFT split, the non-tool portion is dominated by long-video reasoning data [4], complemented by Video-R1-CoT [8] and a smaller amount of hard image-based CoT supervision. Detailed breakdown can be found in Section 9. The tool-augmented subset combines Gemini 2.5 Flash [5] distilled CoT traces (i.e., iMCoTT) for open-ended QA and Qwen2.5-VL-72B-Instruct [1] distilled traces for temporal grounding, providing joint supervision for tool usage and timestamp prediction. For the RL split, we filtered a high-quality subset of QA instances from Section 3.1. For RFT, we further select high-quality RL rollout traces for post-RL refinement, providing dense supervision that enables the policy to go well beyond the SFT-only performance ceiling. Together, these components yield a large-scale and diverse dataset spanning SFT, RL, and RFT, covering high-level reasoning, temporal grounding, and tool-integrated behaviors. For evaluation, we introduce the VideoSIAH-Eval benchmark, which consists of 244 videos and 1,280 carefully filtered QA pairs via human-in-the-loop validation. This benchmark is specifically designed for long-form video reasoning with an average video duration of approximately 1,688 seconds. The duration distribution is concentrated in the 15-30 minute range (71.84%), with the remaining 28.16% of videos being longer than 30 minutes."
+            ],
+            "subsections": []
+          }
+        ]
+      },
+      {
+        "title": "4 Training Strategy",
+        "level": 2,
+        "paragraphs": [
+          "To make full use of the VideoSIAH and elicit robust “Thinking with Long Videos” behaviors, LongVT adopts a three-stage training pipeline: (1) cold-start supervised fine-tuning, which teaches the base model to propose temporal windows, invoke video tools, and compose multimodal evidence; (2) agentic reinforcement learning, which optimizes a joint answer–temporal-grounding reward to refine tool-using rollouts; and (3) agentic reinforcement fine-tuning, which distills high-quality RL trajectories back into supervised data to stabilize these behaviors and consolidate long-horizon reasoning."
+        ],
+        "subsections": [
+          {
+            "title": "4.1 Cold-Start Supervised Fine-Tuning",
+            "level": 3,
+            "paragraphs": [
+              "As shown in Figure 3-(b), our preliminary RL experiments using Qwen2.5-VL-7B [1] as the baseline model reveal that the model fails to improve during RL and ultimately collapses with continued training. This analysis of training dynamics indicates two major deficiencies of the base LMM: (1) the inability to correctly localize the relevant temporal window within long video, and (2) insufficient reasoning capability when integrating tool outputs. We also present a straightforward example in Figure 14 that illustrates the necessity of a cold-start SFT stage. These limitations highlight that the model’s native tool-calling abilities are too weak for direct RL training. Therefore, a cold-start stage is indispensable for establishing a reliable foundation. After applying SFT cold start, the model’s tool-calling activeness improves substantially and continues to increase steadily during RL, supported by results in Table 3."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "4.2 Agentic Reinforcement Learning",
+            "level": 3,
+            "paragraphs": [
+              "In this stage, we treat the model as a tool-using agent that decides when to inspect the video, how long to crop, and how to integrate the retrieved evidence into its reasoning. We employ GRPO [35] to achieve this objective. In addition, we introduce a three-part reward modeling that jointly optimizes answer accuracy, format compliance, and temporal grounding precision of sampled trajectories, namely, joint answer-temporal grounding reward. Prior work [8, 49] typically targets either answer correctness or time alignment in isolation. We take a further step toward unifying these signals within a single reward function for open-ended long-video QA. This coupling ties answer selection to where the evidence lies in time, improving final-answer correctness and promoting more effective tool use at inference, with more reliable and precise timestamp proposals.",
+              "Answer Accuracy. Let KK be the number of sampled rollouts in a group. For the kk-th rollout (k∈{1,…,K}k\\in\\{1,\\dots,K\\}), let a^(k)\\hat{a}^{(k)} denote its generated answer and let a⋆a^{\\star} denote the ground-truth answer. We employ LLM-as-a-Judge [55] to obtain a categorical verdict",
+              "where F = fully consistent (semantically equivalent to a⋆a^{\\star}), P = partially consistent (contains some correct information but is incomplete or imprecise), and I = inconsistent (incorrect or contradictory).",
+              "The accuracy reward is then defined as the normalized score",
+              "Format Compliance. Let y(k)y^{(k)} denote the full textual output of the kk-th rollout and let 𝒮\\mathcal{S} be the required output schema. Define",
+              "Temporal Overlap. Following previous temporal grounding work [8, 24], we use standard temporal IoU as the reward function for temporal localization. For a prediction [ts,te][t_{s},t_{e}] and ground truth [ts′,te′][t^{\\prime}_{s},t^{\\prime}_{e}],",
+              "Hence Rtime(k)=1\\textbf{R}_{\\text{time}}^{(k)}=1 only when the predicted span matches the ground-truth interval exactly, and Rtime(k)=0\\textbf{R}_{\\text{time}}^{(k)}=0 when there is no temporal overlap. This simple form proved sufficient to drive grounded cropping and tighter timestamp proposals during tool use.",
+              "Overall Reward."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "4.3 Agentic Reinforcement Fine-tuning",
+            "level": 3,
+            "paragraphs": [
+              "Recent work [40] argues that RFT has become a key ingredient for equipping large language models and their multimodal counterparts with strong reasoning capabilities, since it optimizes sequence-level rewards that directly reflect task success rather than token-level likelihood, and consistently improves performance across diverse modalities and tasks. Motivated by these findings, we further leverage RFT to stabilize model’s agentic behaviors and consolidate multimodal reasoning. Specifically, we select high-quality cases from early RL rollouts that exhibit both accurate temporal localization and coherent reasoning toward the final answer, and incorporate these trajectories back into the supervised fine-tuning curriculum as privileged and self-distilled demonstrations. Empirically (see Section 5.3), we find that learning from these in-distribution high-quality trajectories helps the model internalize robust grounding and tool-calling patterns complementary to large-scale agentic RL, effectively guiding optimization toward policies that better align answer accuracy, temporal grounding, and tool usage."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "4.4 Overall Framework",
+            "level": 3,
+            "paragraphs": [
+              "As visualized in Figure 4, LongVT operates in an iterative “hypothesis-verification” cycle. This behavioral capability is incentivized via cold-start SFT, enabling the model to skim global frames and proactively invoke the crop_video tool to resample fine-grained evidence. In cases where the initial retrieval (e.g., at T1T_{1}) proves insufficient, the model leverages learned self-correction to re-invoke the tool (e.g., at T2T_{2}) with refined parameters. Crucially, this entire decision-making trajectory is consolidated via agentic RL, which optimizes the policy against the joint answer-temporal grounding reward (Racc+Rformat+Rtime\\textbf{R}_{\\text{acc}}+\\textbf{R}_{\\text{format}}+\\textbf{R}_{\\text{time}}), enhancing the model’s generalization ability to further align with human-like verification strategies."
+            ],
+            "subsections": []
+          }
+        ]
+      },
+      {
+        "title": "5 Experiments",
+        "level": 2,
+        "paragraphs": [],
+        "subsections": [
+          {
+            "title": "5.1 Experimental Setup",
+            "level": 3,
+            "paragraphs": [
+              "We utilize Qwen2.5-VL-7B [1] as the baseline model in all experiments. We report the performance of three LongVT variants based on their training stages against Qwen2.5-VL-7B and other open-source video-centric LMMs including Video-R1-7B [8], VideoRFT-7B [46], and Video-Thinker-7B [47] plus proprietary LMMs such as GPT-4o [16] and Gemini 1.5 Pro [41]. Note that we do not include direct comparisons to the concurrent tool-augmented video-centric LMM [59], since its model checkpoints are not publicly available, which hinders fair and reproducible experiments. We evaluate all models on four long-video understanding and reasoning benchmarks, namely VideoMME [9], VideoMMMU [13], LVBench [48], and our self-curated VideoSIAH-Eval, leveraging a unified evaluation framework [60] for fair comparison. Results are reported under two frame-sampling regimes: Sparse Frame Sampling (64 uniformly sampled video frames) and Dense Frame Sampling (512 or 768 uniformly sampled frames; the better result among the two is reported). Reasoning Prompt indicates whether a standard reasoning-style prompt (✓) or a direct question-answering prompt (✗) is applied; Tool Calling denotes whether native tool calling is enabled (✓) or disabled (✗) in the prompt. More implementation details can be found in Section 12."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "5.2 Main Results",
+            "level": 3,
+            "paragraphs": [
+              "As shown in Table 2, our approach achieves a new state-of-the-art among open-source video-centric LMMs under both sparse and dense frame sampling settings. When evaluating at 64 frames, LongVT-7B-RL slightly surpasses the best existing open-source baseline. Under dense frame sampling, both LongVT-7B-RL and LongVT-7B-RFT yield more dominant performance, outperforming existing methods by a large margin. On the challenging VideoSIAH-Eval, which involves open-ended QAs that require the retrieval of fine-grained evidence from hours-long videos, LongVT-7B-RFT reaches 42.0, outperforming the second-best model by 6 points. This confirms that LongVT achieves stronger long-video reasoning and exhibits an emergent ability to invoke native tools for temporal localization. Notably, the gap between open-source and proprietary LMMs has narrowed substantially: LongVT’s best-performing checkpoint lies within roughly four points of GPT-4o on average, marking a significant step forward in long-video reasoning capability among open-source LMMs."
+            ],
+            "subsections": []
+          },
+          {
+            "title": "5.3 Ablation Studies",
+            "level": 3,
+            "paragraphs": [
+              "Fine-grained reasoning data matters. As shown in Table 3, our self-curated training data plays a crucial role in shaping the model’s reasoning behavior when dealing with long-form videos. In the SFT stage, removing the self-curated iMCoTTs (SFT w/o self-curated iMCoTT) leads to consistent performance drop in long-form video understanding. In addition, when self-curated QAs are removed during RL (RL w/o self-curated QAs), model’s performance drops quickly on VideoSIAH-Eval, with lower answer accuracy, weaker temporal localization, and less systematic tool use, which can also be observed in Figure 3-(b).",
+              "Recall encourages coverage; IoU demands precision. As shown in Figure 3-(a), using Recall as the reward function during RL presents a drawback: the policy can enlarge the predicted span to envelop the ground-truth interval, which monotonically raises the Recall-based score while ignoring boundary quality. This plateau in the curve of Recall Accuracy Score further validates our hypothesized reward hacking. Quantitatively, in the reward-choice rows of Table 3, IoU-rewarded training outperforms Recall on the temporal grounding benchmark [10], while Recall is only marginally above the RL w/o Decoupled Reward variant, pointing to IoU’s tighter handling of boundary agreement. Optimizing with IoU provides smooth shaping over overlap and implicitly penalizes span inflation via the union term, yielding better-aligned boundaries and more disciplined tool use.",
+              "Is tool reward really necessary? As shown in Figure 3-(b), the Qwen2.5-VL-7B baseline collapses to near-zero tool calls after training in both configurations (w/ and w/o tool reward), indicating that the model does not internalize the tool’s function. After performing cold-start SFT to obtain LongVT-7B-SFT, tool-call frequency rises during training under both configurations and accuracy improves in tandem. Hence, the tool reward is not required for basic competence: once SFT grounds the tool’s semantics, the model learns when to invoke the tool and when to abstain. Moreover, introducing the tool reward brings little benefit. In the later training stage, the configuration without the tool reward even exhibits slightly higher tool-use frequency, indicating that the binary bonus does not encourage usage and may suppress exploration, while accuracy remains essentially unchanged. Given these observations, we discard the tool reward in our final recipe and rely on the standard accuracy, format, and decoupled IoU reward modeling.",
+              "SFT builds competence; RL optimizes decisions; RFT stabilizes behaviors. We ablate each training stage individually and in combination, finding that strong performance emerges only with the full three-stage pipeline. As shown in Figure 3-(b), removing SFT leaves the model with poor tool-use ability: it cannot reliably invoke crop_video tool or integrate cropped evidence into its reasoning. Consistently, the RL-only variant achieves the lowest scores on all four benchmarks (Table 3) and exhibits behavioral inconsistencies during training—often following surface instructions and becoming confused by the returned crop rather than using it as supporting evidence.",
+              "SFT teaches the intended tool-use paradigm—selecting temporal windows, inspecting their content, and incorporating the resulting evidence into the final answer. However, SFT remains imitation-driven [22]: it fits demonstrated formats, suffers from exposure bias, and fails to generalize under distribution shift. On long-video QA, SFT alone yields only modest gains. We therefore introduce RL with a temporal-grounding reward, optimized via GRPO. RL enables the policy to learn when to inspect, how long to crop, and how to integrate retrieved evidence. This stage pushes performance beyond the supervised ceiling on held-out videos and unseen question templates (Table 3), aligning with prior findings that GRPO improves reasoning and generalization [11].",
+              "Finally, RFT distills high-reward trajectories back into the supervised corpus, providing additional performance gains. On VideoSIAH-Eval, it surpasses the RL-only plateau by a substantial margin and yields our best-performing model, while still delivering consistent improvements on other benchmarks. This demonstrates that consolidating successful rollouts is essential for fully realizing the benefits of temporal-grounding feedback."
+            ],
+            "subsections": []
+          }
+        ]
+      },
+      {
+        "title": "6 Conclusion",
+        "level": 2,
+        "paragraphs": [
+          "In this work, we present LongVT, an end-to-end agentic framework that enables LMMs to reliably reason over long videos. By interleaving multimodal tool-augmented CoT with on-demand temporal inspection, LongVT transforms long-video understanding from passive frame consumption into active, evidence-seeking reasoning. Supported by self-curated VideoSIAH, a large-scale, fine-grained data suite built specifically for evidence-sparse long-video reasoning tasks, our proposed three-stage training pipeline yields substantial and consistent improvements compared to existing strong baselines."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "7 LongVT Performs Human-Aligned Thinking like Leading Proprietary LMMs",
+        "level": 2,
+        "paragraphs": [
+          "The core philosophy of our proposed interleaved Multimodal Chain-of-Tool-Thought (iMCoTT) entails a “global-to-local” thinking pattern: the model first performs a coarse skim to formulate a hypothesis, and subsequently invokes the native crop_video() tool to inspect specific temporal windows for fine-grained verification. While this design was inspired by human intuition, we observe a striking convergence between our approach and the reasoning behaviors emerging in state-of-the-art proprietary LMMs when they are prompted to perform fine-grained analysis.",
+          "To validate this alignment, we queried two leading models, Gemini 2.5 Pro [5] and GPT-5 Thinking [42], regarding their optimal strategies for analyzing fine-grained video details. As illustrated in Figure 5(a), Gemini 2.5 Pro explicitly advocates for a two-stage process: a “Step 1: Coarse Scan” to efficiently locate the general event (e.g., searching for scoreboard changes or crowd reactions), followed by a “Step 2: Fine Scan” to isolate the exact moment and verify details (e.g., scrubbing back 30-60 seconds). This directly mirrors the workflow of our proposed LongVT, where the “Coarse Scan” corresponds to our global preview stage, and the “Fine Scan” is functionally identical to our agentic crop_video() tool calling. Similarly, Figure 5(b) demonstrates that the GPT-series model adopts a hierarchical “Coarse→\\rightarrowMedium→\\rightarrowFine” search strategy. These examples confirm that the “Thinking with Long Videos” paradigm we propose in this work is a natural and necessary evolution for reliable long-form video reasoning, given that such human-aligned reasoning capabilities are currently exclusive to top-tier proprietary models."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "8 What Motivates VideoSIAH? Unveiling the Data Contamination in Qwen-VL Series",
+        "level": 2,
+        "paragraphs": [
+          "With the rapid advancements of LMMs, model performance on various benchmarks has steadily improved. However, the “black-box” nature of training data raises a critical question: Do these improvements reflect genuine reasoning capability, or are they partly due to the model memorizing the benchmark samples? To investigate this, we conduct a rigorous contamination study on the Qwen-VL series [1, 44] across two probing settings: (1) No Visual, where we feed the text prompt without video frames to test for direct memorization; (2) Rearranged Choices, where we randomize the mapping between option labels and their textual content (e.g., assigning the original answer A to B) for multiple-choice questions (MCQs) to detect label memorization.",
+          "Our experimental results reveal significant vulnerabilities in existing benchmarks and highlight the necessity of our proposed VideoSIAH-Eval: Observation 1: “No Visual” Performance Indicates Severe Leakage in Existing Benchmarks. As shown in Table 4, both Qwen2.5-VL and Qwen3-VL achieve remarkably high scores on VideoMME and VideoMMMU even without seeing any video frames. Notably, for VideoMME, we specifically evaluate without subtitles to ensure there is no textual leakage, yet Qwen2.5-VL still achieves 40.1%, far exceeding random guessing (∼\\sim25%) for such four-option MCQs. Similar patterns of potential data leakage are observed on VideoMMMU. While the ‘No Visual’ scores of 38.3% (Comprehension) and 39.3% (Perception) might appear similar to VideoMME, they are statistically more improbable given the dataset composition. Our statistics reveal that these subsets are overwhelmingly dominated by MCQs with 10 options (e.g., 286 out of 300 for Comprehension and 279 out of 300 for Perception), implying a random guessing baseline of only ∼10​–​16%\\sim 10\\text{--}16\\%. The fact that the model achieves scores significantly above this threshold absent any visual context indicates a high probability of benchmark memorization. In contrast, performance on VideoSIAH-Eval drops significantly in the “No Visual” setting. Specifically, Qwen3-VL collapses to a score of 0.00. Upon manual inspection, we find that without visual grounding, the model generates repetitive code or refusal messages, which is the expected behavior for a clean and non-contaminated benchmark. Observation 2: “Rearranged Choices” Reveals Overfitting to Option Patterns. For MCQ-based benchmarks, we observe distinct performance drops when answer choices are rearranged. For instance, Qwen2.5-VL drops from 64.3 to 56.0 on VideoMME. This indicates that they heavily rely on memorizing specific option mappings (e.g., the answer to this question is usually “A”) rather than understanding the content. Since VideoSIAH-Eval utilizes a fully open-ended QA format, it is inherently immune to this type of option hacking, providing a more robust assessment of the model’s capabilities.",
+          "These findings confirm that existing benchmarks are compromised by data contamination (high “No Visual” scores), option bias (sensitive to “Rearranged Choices”). This motivates the introduction of VideoSIAH-Eval, which ensures: (1) Zero leakage as verified by the 0.00 blind score, and (2) Immunity to option bias via open-ended QA format."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "9 Additional VideoSIAH Details",
+        "level": 2,
+        "paragraphs": [],
+        "subsections": []
+      },
+      {
+        "title": "10 Additional Methodological Details",
+        "level": 2,
+        "paragraphs": [],
+        "subsections": []
+      },
+      {
+        "title": "11 Reflection Trajectory: From Verbose Self-Correction to Internalized Tool Usage",
+        "level": 2,
+        "paragraphs": [
+          "We visualize the evolution of the model’s internal thought process in Figure 7 (left). Echoing the training dynamics observed in DeepEyes [63], the trajectory of reflection token proportion discloses a distinct three-phase evolution from exploratory correction to efficient tool exploitation: (1) Verbose Self-Correction (Steps 0∼\\sim50): Initially, reflection density remains high. Due to insufficient localization accuracy, the model relies on extensive self-correction and iterative verbal reasoning to compensate for sub-optimal tool usage. (2) Efficiency Optimization (Steps 50∼\\sim80): A significant drop follows as the policy matures. As the model’s intrinsic grounding capability improves, it identifies prolonged reflection to be redundant, autonomously pruning unnecessary linguistic fillers to maximize reward efficiency. (3) Internalized Proficiency (After 80 Steps): The curve stabilizes at a concise baseline, indicating a shift toward selective reasoning—the model invokes explicit reflection only when resolving ambiguity, having internalized the core semantics of tool interaction. Complementing this, the word cloud (right) confirms that the remaining reflection tokens are semantically grounded (e.g., “segment,” “confirm”), serving as functional anchors for temporal reasoning rather than generating generic linguistic fillers."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "12 Additional Implementation Details",
+        "level": 2,
+        "paragraphs": [
+          "The full set of experimental hyperparameters is detailed in Table 6."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "13 Inference Efficiency Analysis",
+        "level": 2,
+        "paragraphs": [],
+        "subsections": []
+      },
+      {
+        "title": "14 Examples",
+        "level": 2,
+        "paragraphs": [],
+        "subsections": []
+      },
+      {
+        "title": "15 Failure Case Analysis",
+        "level": 2,
+        "paragraphs": [
+          "To further illustrate the instability of the RL-only variant discussed in Section 5.3 of the main paper, we present a representative failure case. As shown in Figure 14, the model correctly recognizes the need to invoke a tool to inspect the glass coffee table. However, after receiving the resampled video frames, it fails to integrate the returned evidence to answer the specific question (“which video-game device”). Instead of performing the required reasoning, the model becomes confused by the context shift and reverts to generic video captioning, merely restating superficial scene descriptions. This behavior underscores the importance of the SFT cold start in teaching the model the intended semantics of tool usage, enabling it to correctly interpret tool outputs and incorporate them into its reasoning process."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "16 Limitation and Future Direction",
+        "level": 2,
+        "paragraphs": [
+          "While our efficiency analysis in Section 13 confirms that multi-turn tool interactions do not impose significant latency penalties, the memory footprint of such recursive reasoning remains a bottleneck. The single-agent architecture of LongVT is constrained by the inherent context window of the underlying LMM: as the number of interaction turns increases—driven by the need for multiple crop_video calls to inspect ultra-long or infinite video streams—the accumulation of history tokens (including dense visual features returned by tools) can rapidly exhaust the context budget. This accumulation poses a risk of Out-of-Memory errors during training and imposing performance degradation due to truncation.",
+          "A promising future direction to resolve this limitation lies in multi-agent collaboration. Inspired by recent advancements in multi-agent reinforcement learning such as MATPO [32], we envision a hierarchical framework where context management is decoupled from reasoning. In this future paradigm, a “Manager Agent” could orchestrate high-level planning and dispatch sub-tasks to specialized “Worker Agents,” each responsible for inspecting distinct temporal segments or executing specific tool calls. By enabling workers to summarize their observations into concise natural language updates for the manager, such a system could theoretically support infinite-horizon reasoning loops without succumbing to context overflow. We leave the exploration of this scalable, divide-and-conquer architecture to future work."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "17 Broader Impact",
+        "level": 2,
+        "paragraphs": [
+          "LongVT advances the field of long-video understanding by introducing an agentic framework capable of proactive evidence seeking and self-correction. By enabling LMMs to dynamically inspect and re-examine video segments, this work addresses critical reliability issues—such as hallucinations and temporal misalignment that hinder the deployment of AI in high-stakes domains. As video-based AI systems become integral to applications ranging from automated surveillance and content moderation to educational analytics and assistive technologies for the visually impaired, the improved factual grounding and transparency offered by LongVT support safer and more trustworthy interactions."
+        ],
+        "subsections": []
+      },
+      {
+        "title": "18 Ethical Considerations",
+        "level": 2,
+        "paragraphs": [],
+        "subsections": []
+      }
+    ],
+    "figures": [
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x2.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 2: Data Pipeline of VideoSIAH. We construct a semi-automatic data pipeline that integrates several state-of-the-art LMMs [1, 43, 5, 12] to sequentially perform long video segmentation, video clip captioning, segment-in-a-haystack QA generation, cross-modal QA filtering, and iMCoTT generation. Icons with human silhouettes denote human-in-the-loop validation, where annotators inspect a small set of representative failures to refine prompting rules for QA generation, QA filtering, and iMCoTT generation. Note that iMCoTT traces are generated only for the cold-start SFT stage, whereas RL training operates solely on the filtered QA pairs.",
+        "label": "S3.F2"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x3.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 3: Ablations on Reward Design. The left panel shows training dynamics under different accuracy and time rewards, and the right panel shows the effect of tool-call reward on tool usage.",
+        "label": "S4.F3"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x4.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 4: Overall Framework of LongVT. Our approach processes long-form videos in a human-like two-stage manner. Specifically, LongVT is augmented with interleaved Multimodal Chain-of-Tool-Thought (iMCoTT): first performs a global skim over sampled video frames to form a coarse hypothesis about when evidence likely occurs; then invokes a native video tool crop_video(start_time, end_time) to resample finer-grained frames from a short clip via a hypothesized window and reasons again. Our model itself determines whether to directly answer after one turn (T1T_{1}) or continue for multiple turns (up to T5T_{5}) with self-reflection. During reinforcement learning, we jointly optimize answer correctness (Racc\\textbf{R}_{\\text{acc}}), clean formatting (Rformat\\textbf{R}_{\\text{format}}), and precise temporal grounding (Rtime\\textbf{R}_{\\text{time}}).",
+        "label": "S4.F4"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x5.png",
+        "alt": "Refer to caption",
+        "caption": "(a) Watching Strategy of Gemini 2.5 Pro.",
+        "label": "S7.F5"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x5.png",
+        "alt": "Refer to caption",
+        "caption": "(a) Watching Strategy of Gemini 2.5 Pro.",
+        "label": "S7.F5.sf1"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x6.png",
+        "alt": "Refer to caption",
+        "caption": "(b) Watching Strategy of GPT-5 Thinking.",
+        "label": "S7.F5.sf2"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x7.png",
+        "alt": "Refer to caption",
+        "caption": "(a) Video Category Distribution",
+        "label": "S9.F6"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x7.png",
+        "alt": "Refer to caption",
+        "caption": "(a) Video Category Distribution",
+        "label": "S9.F6.sf1"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x8.png",
+        "alt": "Refer to caption",
+        "caption": "(b) Question Category Distribution",
+        "label": "S9.F6.sf2"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x9.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 7: Trend of Reflection-Related Words and the Corresponding Word Cloud across All Rollouts.",
+        "label": "S10.F7"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x10.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 8: Prompt Template Utilized for RL. This template outlines the structural guidelines and system instructions provided to the model during the RL training phase.",
+        "label": "S18.F8"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x11.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 9: Evaluation Prompt for LLM-as-a-Judge. We present the full system instruction used to query the judge model. This prompt defines the scoring criteria and guidelines to ensure consistent evaluation of the model’s generated responses.",
+        "label": "S18.F9"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x12.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 10: Representative Data Example for SFT and RFT. The example illustrates the input format and the corresponding ground-truth response used to train the model across both fine-tuning stages.",
+        "label": "S18.F10"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x13.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 11: An Example of Single-turn Inference with Self-Correction. The model initially misidentifies the basin color as pink. However, through the reasoning process (highlighted in the “Thinking” block), it explicitly decides to double-check the frames, corrects the hallucinations, and outputs the correct answer (Blue).",
+        "label": "S18.F11"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x14.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 12: An Example of Multi-step Inference Involving Tool Interaction. In this complex query, the model initially crops an incorrect time window (297s-305s) which lacks the target visual information. Recognizing this error during the reasoning phase, it refines the parameters and calls the tool again with the correct window (344s-372s) to successfully identify the US flag.",
+        "label": "S18.F12"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x15.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 13: Qualitative Comparison between Textual CoT and Our Designed iMCoTT. The baseline textual CoT (left) relies on hallucinated memory, confidently providing an incorrect answer regarding the cars’ colors (“Black and Yellow”). In contrast, our model (right) actively engages with the video content via tool usage. Despite an initial mis-localization (90s-120s), the model explicitly detects the absence of the target object, self-corrects its temporal search window to the correct range (174s-190s), and accurately identifies the cars as “White and Yellow.”",
+        "label": "S18.F13"
+      },
+      {
+        "src": "https://ar5iv.labs.arxiv.org/html/2511.20785/assets/x16.png",
+        "alt": "Refer to caption",
+        "caption": "Figure 14: Failure Case of the RL-only Variant. This example demonstrates the model’s inability to maintain the logical flow after a tool interaction without prior SFT. Although the model initiates a tool call to inspect the blurred region, it fails to utilize the returned observation to answer the user’s question. Instead, it loses the conversational context and hallucinates a repetition of the general video description.",
+        "label": "S18.F14"
+      }
+    ],
+    "tables": [
+      {
+        "caption": "Figure 2: Data Pipeline of VideoSIAH. We construct a semi-automatic data pipeline that integrates several state-of-the-art LMMs [1, 43, 5, 12] to sequentially perform long video segmentation, video clip captioning, segment-in-a-haystack QA generation, cross-modal QA filtering, and iMCoTT generation. Icons with human silhouettes denote human-in-the-loop validation, where annotators inspect a small set of representative failures to refine prompting rules for QA generation, QA filtering, and iMCoTT generation. Note that iMCoTT traces are generated only for the cold-start SFT stage, whereas RL training operates solely on the filtered QA pairs.",
+        "headers": [],
+        "rows": [
+          [
+            "Split",
+            "Source",
+            "Purpose",
+            "Samples",
+            "Total"
+          ],
+          [
+            "SFT (w/o tool)",
+            "LongVideo-Reason CoT [4]",
+            "Reasoning-augmented Open-ended QA",
+            "5,238",
+            "228,835"
+          ],
+          [
+            "",
+            "Video-R1 CoT [8]",
+            "Reasoning-augmented Video QA",
+            "165,575",
+            ""
+          ],
+          [
+            "",
+            "Image-based CoT",
+            "Reasoning-augmented Image QA",
+            "58,022",
+            ""
+          ],
+          [
+            "SFT (w/ tool)",
+            "Gemini-distilled iMCoTT",
+            "Tool-augmented Open-ended QA",
+            "12,766",
+            "19,161"
+          ],
+          [
+            "",
+            "Qwen-distilled iMCoTT",
+            "Tool-augmented Temporal Grounding",
+            "6,395",
+            ""
+          ],
+          [
+            "RL",
+            "Gemini-distilled QAs",
+            "Open-ended QA over Long Videos",
+            "1,667",
+            "17,020"
+          ],
+          [
+            "RFT",
+            "Self-distilled iMCoTT",
+            "Agentic Behaviors",
+            "15,353",
+            ""
+          ]
+        ],
+        "label": null
+      },
+      {
+        "caption": "Figure 4: Overall Framework of LongVT. Our approach processes long-form videos in a human-like two-stage manner. Specifically, LongVT is augmented with interleaved Multimodal Chain-of-Tool-Thought (iMCoTT): first performs a global skim over sampled video frames to form a coarse hypothesis about when evidence likely occurs; then invokes a native video tool crop_video(start_time, end_time) to resample finer-grained frames from a short clip via a hypothesized window and reasons again. Our model itself determines whether to directly answer after one turn (T1T_{1}) or continue for multiple turns (up to T5T_{5}) with self-reflection. During reinforcement learning, we jointly optimize answer correctness (Racc\\textbf{R}_{\\text{acc}}), clean formatting (Rformat\\textbf{R}_{\\text{format}}), and precise temporal grounding (Rtime\\textbf{R}_{\\text{time}}).",
+        "headers": [],
+        "rows": [
+          [
+            "Model",
+            "Reasoning",
+            "Tool",
+            "VideoMME (≈\\approx1018 sec) [9]",
+            "VideoMMMU (≈\\approx506 sec) [13]",
+            "LVBench [48]",
+            "VideoSIAH-Eval",
+            "Average"
+          ],
+          [
+            "Prompt",
+            "Calling",
+            "w/ subtitle",
+            "adaptation",
+            "comprehension",
+            "perception",
+            "(≈\\approx4101 sec)",
+            "(≈\\approx1688 sec)",
+            "Score"
+          ],
+          [
+            "Proprietary LMMs"
+          ],
+          [
+            "GPT-4o [16]",
+            "✗",
+            "✗",
+            "77.2†",
+            "66.0†",
+            "62.0†",
+            "55.7†",
+            "30.8†",
+            "17.4",
+            "51.5"
+          ],
+          [
+            "Gemini 1.5 Pro [41]",
+            "✗",
+            "✗",
+            "81.3†",
+            "59.0†",
+            "53.3†",
+            "49.3†",
+            "33.1†",
+            "-",
+            "55.2"
+          ],
+          [
+            "Open-Source LMMs with Sparse Frame Sampling"
+          ],
+          [
+            "Qwen2.5-VL-7B [1]",
+            "✗",
+            "✗",
+            "62.6",
+            "37.3",
+            "28.0",
+            "36.7",
+            "30.7",
+            "28.1",
+            "37.2"
+          ],
+          [
+            "Video-R1-7B [8]",
+            "✓",
+            "✗",
+            "61.0",
+            "36.3",
+            "40.7",
+            "52.3",
+            "37.2",
+            "27.9",
+            "42.6"
+          ],
+          [
+            "VideoRFT-7B [46]",
+            "✓",
+            "✗",
+            "60.9",
+            "36.7",
+            "42.0",
+            "53.0",
+            "34.7",
+            "26.5",
+            "42.3"
+          ],
+          [
+            "Video-Thinker-7B [47]",
+            "✓",
+            "✗",
+            "61.0",
+            "34.3",
+            "44.7",
+            "53.0",
+            "52.2",
+            "10.4",
+            "42.6"
+          ],
+          [
+            "LongVT-7B-SFT (Ours)",
+            "✓",
+            "✓",
+            "12.5",
+            "37.7",
+            "46.0",
+            "58.3",
+            "36.0",
+            "26.8",
+            "36.2"
+          ],
+          [
+            "LongVT-7B-RL (Ours)",
+            "✓",
+            "✓",
+            "66.1",
+            "32.7",
+            "44.7",
+            "50.0",
+            "37.8",
+            "31.0",
+            "43.7"
+          ],
+          [
+            "Open-Source LMMs with Dense Frame Sampling"
+          ],
+          [
+            "Qwen2.5-VL-7B [1]",
+            "✗",
+            "✗",
+            "64.3",
+            "35.7",
+            "44.3",
+            "56.7",
+            "40.9",
+            "33.8",
+            "46.0"
+          ],
+          [
+            "Video-R1-7B [8]",
+            "✓",
+            "✗",
+            "60.5",
+            "37.3",
+            "38.7",
+            "46.3",
+            "40.1",
+            "33.1",
+            "42.7"
+          ],
+          [
+            "VideoRFT-7B [46]",
+            "✓",
+            "✗",
+            "49.2",
+            "37.7",
+            "40.7",
+            "48.7",
+            "18.7",
+            "26.9",
+            "37.0"
+          ],
+          [
+            "Video-Thinker-7B [47]",
+            "✓",
+            "✗",
+            "60.8",
+            "37.7",
+            "42.7",
+            "55.3",
+            "54.3",
+            "6.6",
+            "42.9"
+          ],
+          [
+            "LongVT-7B-SFT (Ours)",
+            "✓",
+            "✓",
+            "64.9",
+            "32.3",
+            "42.0",
+            "49.7",
+            "41.1",
+            "34.8",
+            "44.1"
+          ],
+          [
+            "LongVT-7B-RL (Ours)",
+            "✓",
+            "✓",
+            "66.1",
+            "37.7",
+            "42.3",
+            "56.3",
+            "41.4",
+            "35.9",
+            "46.6"
+          ],
+          [
+            "LongVT-7B-RFT (Ours)",
+            "✓",
+            "✓",
+            "67.0",
+            "35.7",
+            "43.7",
+            "56.7",
+            "41.3",
+            "42.0",
+            "47.7"
+          ]
+        ],
+        "label": null
+      },
+      {
+        "caption": "Table 2: Performance Comparison with Existing Video-Centric LMMs across Various Long Video Understanding and Reasoning Benchmarks. The best and second-best result among open-source models in each column is marked in bold and underlined, respectively. The numbers with “≈\\approx” denote the average video duration of each benchmark. † indicates results sourced from official reports [9, 13, 48].",
+        "headers": [],
+        "rows": [
+          [
+            "VideoMME [9]",
+            "VideoMMMU [13]",
+            "LVBench [48]",
+            "VideoSIAH-Eval",
+            "Average"
+          ],
+          [
+            "w/ subtitle",
+            "adaptation",
+            "comprehension",
+            "perception",
+            "test",
+            "test",
+            "Score"
+          ],
+          [
+            "8.4",
+            "33.6",
+            "41.6",
+            "46.0",
+            "15.1",
+            "4.1",
+            "24.8"
+          ],
+          [
+            "64.9",
+            "32.3",
+            "42.0",
+            "49.7",
+            "41.1",
+            "34.8",
+            "44.1"
+          ],
+          [
+            "55.1",
+            "30.6",
+            "42.0",
+            "45.6",
+            "38.4",
+            "30.8",
+            "40.4"
+          ],
+          [
+            "66.1",
+            "37.7",
+            "42.3",
+            "56.3",
+            "41.4",
+            "35.9",
+            "46.6"
+          ],
+          [
+            "64.9",
+            "32.3",
+            "42.0",
+            "49.7",
+            "41.1",
+            "34.8",
+            "44.1"
+          ],
+          [
+            "52.7",
+            "35.33",
+            "43.0",
+            "55.1",
+            "37.1",
+            "28.2",
+            "41.9"
+          ],
+          [
+            "66.1",
+            "37.7",
+            "42.3",
+            "56.3",
+            "41.4",
+            "35.9",
+            "46.6"
+          ],
+          [
+            "67.0",
+            "35.7",
+            "43.7",
+            "56.7",
+            "41.3",
+            "42.0",
+            "47.7"
+          ],
+          [
+            "",
+            "Charades-STA [10]",
+            "",
+            "Average"
+          ],
+          [
+            "",
+            "IoU@0.3",
+            "IoU@0.5",
+            "IoU@0.7",
+            "mIoU",
+            "",
+            "Score"
+          ],
+          [
+            "",
+            "31.5",
+            "19.9",
+            "9.1",
+            "21.2",
+            "",
+            "20.4"
+          ],
+          [
+            "",
+            "32.0",
+            "20.4",
+            "9.6",
+            "21.6",
+            "",
+            "20.9"
+          ],
+          [
+            "",
+            "41.0",
+            "25.8",
+            "11.7",
+            "27.2",
+            "",
+            "26.4"
+          ]
+        ],
+        "label": null
+      },
+      {
+        "caption": "Figure 5: Comparison of Watching Strategies Proposed by Gemini 2.5 Pro [5] and GPT-5 Thinking [42]. Best viewed when zoomed in.",
+        "headers": [
+          "Setting",
+          "VideoMME [9]",
+          "VideoMMMU [13]",
+          "VideoSIAH-Eval",
+          "w/o subtitle",
+          "adaptation∗\\ast",
+          "comprehension",
+          "perception",
+          "test",
+          "Qwen2.5-VL-7B-Instruct [1]"
+        ],
+        "rows": [
+          [
+            "64.3",
+            "35.7",
+            "44.3",
+            "56.7",
+            "33.8"
+          ],
+          [
+            "40.1",
+            "27.0",
+            "38.3",
+            "39.3",
+            "12.7"
+          ],
+          [
+            "56.0",
+            "31.6",
+            "40.3",
+            "67.0",
+            "-"
+          ],
+          [
+            "69.3",
+            "40.7",
+            "60.3",
+            "71.3",
+            "46.6"
+          ],
+          [
+            "44.1",
+            "35.1",
+            "39.3",
+            "46.7",
+            "0.00"
+          ],
+          [
+            "69.0",
+            "38.7",
+            "47.7",
+            "69.3",
+            "-"
+          ]
+        ],
+        "label": null
+      },
+      {
+        "caption": "Figure 6: Category Distribution of VideoSIAH-Eval. We present the distribution of video types (a) and question types (b), highlighting the diversity of our proposed benchmark.",
+        "headers": [
+          "Source",
+          "Purpose",
+          "Samples"
+        ],
+        "rows": [
+          [
+            "LLaVA-CoT [53]",
+            "General Visual Reasoning",
+            "54,591"
+          ],
+          [
+            "OpenVLThinker [6]",
+            "Complex Reasoning",
+            "2,829"
+          ],
+          [
+            "We-Math 2.0 [33]",
+            "Mathematical Reasoning",
+            "602"
+          ]
+        ],
+        "label": null
+      },
+      {
+        "caption": "Figure 7: Trend of Reflection-Related Words and the Corresponding Word Cloud across All Rollouts.",
+        "headers": [
+          "Component",
+          "SFT",
+          "RL",
+          "RFT"
+        ],
+        "rows": [
+          [
+            "AdamW [30]",
+            "AdamW",
+            "AdamW"
+          ],
+          [
+            "5e-5",
+            "1e-6",
+            "5e-5"
+          ],
+          [
+            "cosine",
+            "constant",
+            "cosine"
+          ],
+          [
+            "0.0",
+            "1e-2",
+            "0.0"
+          ],
+          [
+            "3000",
+            "160",
+            "1600"
+          ],
+          [
+            "300",
+            "0",
+            "160"
+          ],
+          [
+            "51200",
+            "52384",
+            "51200"
+          ],
+          [
+            "True",
+            "False",
+            "True"
+          ],
+          [
+            "True",
+            "True",
+            "True"
+          ],
+          [
+            "True",
+            "False",
+            "True"
+          ],
+          [
+            "32",
+            "64",
+            "64"
+          ],
+          [
+            "512",
+            "512",
+            "512"
+          ]
+        ],
+        "label": null
+      },
+      {
+        "caption": "Table 6: Detailed Hyperparameters across Training Stages. Unless otherwise specified, all experiments are conducted on NVIDIA A800-SXM4-80GB GPUs.",
+        "headers": [
+          "Model",
+          "VideoMMMU [13]",
+          "LVBench [48]",
+          "VideoMME [9]",
+          "VideoSIAH-Eval",
+          "Average"
+        ],
+        "rows": [
+          [
+            "2108.6",
+            "2014.7",
+            "3031.6",
+            "1834.3",
+            "2247.3"
+          ],
+          [
+            "1341.8",
+            "1550.6",
+            "2483.3",
+            "1900.3",
+            "1819.0"
+          ],
+          [
+            "1937.9",
+            "2154.3",
+            "3544.2",
+            "2052.6",
+            "2422.3"
+          ],
+          [
+            "3153.8",
+            "3834.9",
+            "2475.1",
+            "1899.2",
+            "2840.8"
+          ],
+          [
+            "1329.8",
+            "1509.3",
+            "2754.0",
+            "1891.1",
+            "1871.1"
+          ]
+        ],
+        "label": null
+      }
+    ],
+    "equations": [
+      {
+        "latex": "\\displaystyle P_{\\text{multi}}=1-\\frac{L_{\\max}-\\operatorname{clip}(L_{\\text{video}},L_{\\max},L_{\\min})}{L_{\\max}-L_{\\min}},",
+        "mathml": "<math alttext=\"\\displaystyle P_{\\text{multi}}=1-\\frac{L_{\\max}-\\operatorname{clip}(L_{\\text{video}},L_{\\max},L_{\\min})}{L_{\\max}-L_{\\min}},\" class=\"ltx_Math\" display=\"inline\" id=\"S3.Ex1X.m2\" intent=\":literal\"><semantics><mrow><mrow><msub><mi mathsize=\"0.900em\">P</mi><mtext mathsize=\"0.900em\">multi</mtext></msub><mo mathsize=\"0.900em\">=</mo><mrow><mn mathsize=\"0.900em\">1</mn><mo mathsize=\"0.900em\">−</mo><mstyle displaystyle=\"true\"><mfrac><mrow><msub><mi mathsize=\"0.900em\">L</mi><mi mathsize=\"0.900em\">max</mi></msub><mo mathsize=\"0.900em\">−</mo><mrow><mi mathsize=\"0.900em\">clip</mi><mo>⁡</mo><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><msub><mi mathsize=\"0.900em\">L</mi><mtext mathsize=\"0.900em\">video</mtext></msub><mo mathsize=\"0.900em\">,</mo><msub><mi mathsize=\"0.900em\">L</mi><mi mathsize=\"0.900em\">max</mi></msub><mo mathsize=\"0.900em\">,</mo><msub><mi mathsize=\"0.900em\">L</mi><mi mathsize=\"0.900em\">min</mi></msub><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></mrow></mrow",
+        "label": null
+      },
+      {
+        "latex": "\\displaystyle P_{\\text{multi}}=1-\\frac{L_{\\max}-\\operatorname{clip}(L_{\\text{video}},L_{\\max},L_{\\min})}{L_{\\max}-L_{\\min}},",
+        "mathml": "<math alttext=\"\\displaystyle P_{\\text{multi}}=1-\\frac{L_{\\max}-\\operatorname{clip}(L_{\\text{video}},L_{\\max},L_{\\min})}{L_{\\max}-L_{\\min}},\" class=\"ltx_Math\" display=\"inline\" id=\"S3.Ex1X.m2\" intent=\":literal\"><semantics><mrow><mrow><msub><mi mathsize=\"0.900em\">P</mi><mtext mathsize=\"0.900em\">multi</mtext></msub><mo mathsize=\"0.900em\">=</mo><mrow><mn mathsize=\"0.900em\">1</mn><mo mathsize=\"0.900em\">−</mo><mstyle displaystyle=\"true\"><mfrac><mrow><msub><mi mathsize=\"0.900em\">L</mi><mi mathsize=\"0.900em\">max</mi></msub><mo mathsize=\"0.900em\">−</mo><mrow><mi mathsize=\"0.900em\">clip</mi><mo>⁡</mo><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><msub><mi mathsize=\"0.900em\">L</mi><mtext mathsize=\"0.900em\">video</mtext></msub><mo mathsize=\"0.900em\">,</mo><msub><mi mathsize=\"0.900em\">L</mi><mi mathsize=\"0.900em\">max</mi></msub><mo mathsize=\"0.900em\">,</mo><msub><mi mathsize=\"0.900em\">L</mi><mi mathsize=\"0.900em\">min</mi></msub><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></mrow></mrow",
+        "label": null
+      },
+      {
+        "latex": "J^{(k)}=\\operatorname{Judge}_{\\mathrm{LLM}}\\!\\big(\\hat{a}^{(k)},\\,a^{\\star}\\big)\\in\\{\\textsc{F},\\textsc{P},\\textsc{I}\\},",
+        "mathml": "<math alttext=\"J^{(k)}=\\operatorname{Judge}_{\\mathrm{LLM}}\\!\\big(\\hat{a}^{(k)},\\,a^{\\star}\\big)\\in\\{\\textsc{F},\\textsc{P},\\textsc{I}\\},\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex2.m1\" intent=\":literal\"><semantics><mrow><mrow><msup><mi mathsize=\"0.900em\">J</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup><mo mathsize=\"0.900em\">=</mo><mrow><msub><mi mathsize=\"0.900em\">Judge</mi><mi mathsize=\"0.900em\">LLM</mi></msub><mo>⁡</mo><mrow><mo maxsize=\"1.200em\" minsize=\"1.200em\">(</mo><msup><mover accent=\"true\"><mi mathsize=\"0.900em\">a</mi><mo mathsize=\"0.900em\">^</mo></mover><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup><mo mathsize=\"0.900em\" rspace=\"0.337em\">,</mo><msup><mi mathsize=\"0.900em\">a</mi><mo mathsize=\"0.900em\">⋆</mo></msup><mo maxsize=\"1.200em\" minsize=\"1.200em\">)</mo></mrow></mrow><mo mathsize=",
+        "label": null
+      },
+      {
+        "latex": "J^{(k)}=\\operatorname{Judge}_{\\mathrm{LLM}}\\!\\big(\\hat{a}^{(k)},\\,a^{\\star}\\big)\\in\\{\\textsc{F},\\textsc{P},\\textsc{I}\\},",
+        "mathml": "<math alttext=\"J^{(k)}=\\operatorname{Judge}_{\\mathrm{LLM}}\\!\\big(\\hat{a}^{(k)},\\,a^{\\star}\\big)\\in\\{\\textsc{F},\\textsc{P},\\textsc{I}\\},\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex2.m1\" intent=\":literal\"><semantics><mrow><mrow><msup><mi mathsize=\"0.900em\">J</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup><mo mathsize=\"0.900em\">=</mo><mrow><msub><mi mathsize=\"0.900em\">Judge</mi><mi mathsize=\"0.900em\">LLM</mi></msub><mo>⁡</mo><mrow><mo maxsize=\"1.200em\" minsize=\"1.200em\">(</mo><msup><mover accent=\"true\"><mi mathsize=\"0.900em\">a</mi><mo mathsize=\"0.900em\">^</mo></mover><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup><mo mathsize=\"0.900em\" rspace=\"0.337em\">,</mo><msup><mi mathsize=\"0.900em\">a</mi><mo mathsize=\"0.900em\">⋆</mo></msup><mo maxsize=\"1.200em\" minsize=\"1.200em\">)</mo></mrow></mrow><mo mathsize=",
+        "label": null
+      },
+      {
+        "latex": "\\textbf{R}_{\\text{acc}}^{(k)}=\\begin{cases}1,&\\text{if }J^{(k)}=\\textsc{F},\\\\[2.0pt]\n0.5,&\\text{if }J^{(k)}=\\textsc{P},\\\\[2.0pt]\n0,&\\text{if }J^{(k)}=\\textsc{I}.\\end{cases}",
+        "mathml": "<math alttext=\"\\textbf{R}_{\\text{acc}}^{(k)}=\\begin{cases}1,&amp;\\text{if }J^{(k)}=\\textsc{F},\\\\[2.0pt]\n0.5,&amp;\\text{if }J^{(k)}=\\textsc{P},\\\\[2.0pt]\n0,&amp;\\text{if }J^{(k)}=\\textsc{I}.\\end{cases}\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex3.m1\" intent=\":literal\"><semantics><mrow><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">acc</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msubsup><mo mathsize=\"0.900em\">=</mo><mrow><mo>{</mo><mtable columnspacing=\"5pt\" displaystyle=\"true\" rowspacing=\"0pt\"><mtr><mtd class=\"ltx_align_left\" columnalign=\"left\"><mrow><mn mathsize=\"0.900em\">1</mn><mo mathsize=\"0.900em\">,</mo></mrow></mtd><mtd class=\"ltx_align_left\" columnalign=\"left\"><mrow><mrow><mrow><mtext mathsize=\"0.900em\">if </mtext><mo lspace=\"0em\" rspace=\"0em\">​</mo><msup><mi mathsize=\"0.900em\">J</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</m",
+        "label": null
+      },
+      {
+        "latex": "\\textbf{R}_{\\text{acc}}^{(k)}=\\begin{cases}1,&\\text{if }J^{(k)}=\\textsc{F},\\\\[2.0pt]\n0.5,&\\text{if }J^{(k)}=\\textsc{P},\\\\[2.0pt]\n0,&\\text{if }J^{(k)}=\\textsc{I}.\\end{cases}",
+        "mathml": "<math alttext=\"\\textbf{R}_{\\text{acc}}^{(k)}=\\begin{cases}1,&amp;\\text{if }J^{(k)}=\\textsc{F},\\\\[2.0pt]\n0.5,&amp;\\text{if }J^{(k)}=\\textsc{P},\\\\[2.0pt]\n0,&amp;\\text{if }J^{(k)}=\\textsc{I}.\\end{cases}\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex3.m1\" intent=\":literal\"><semantics><mrow><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">acc</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msubsup><mo mathsize=\"0.900em\">=</mo><mrow><mo>{</mo><mtable columnspacing=\"5pt\" displaystyle=\"true\" rowspacing=\"0pt\"><mtr><mtd class=\"ltx_align_left\" columnalign=\"left\"><mrow><mn mathsize=\"0.900em\">1</mn><mo mathsize=\"0.900em\">,</mo></mrow></mtd><mtd class=\"ltx_align_left\" columnalign=\"left\"><mrow><mrow><mrow><mtext mathsize=\"0.900em\">if </mtext><mo lspace=\"0em\" rspace=\"0em\">​</mo><msup><mi mathsize=\"0.900em\">J</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</m",
+        "label": null
+      },
+      {
+        "latex": "\\textbf{R}_{\\text{format}}^{(k)}=\\begin{cases}1,&\\text{if }y^{(k)}\\text{ matches }\\mathcal{S},\\\\\n0,&\\text{otherwise.}\\end{cases}",
+        "mathml": "<math alttext=\"\\textbf{R}_{\\text{format}}^{(k)}=\\begin{cases}1,&amp;\\text{if }y^{(k)}\\text{ matches }\\mathcal{S},\\\\\n0,&amp;\\text{otherwise.}\\end{cases}\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex4.m1\" intent=\":literal\"><semantics><mrow><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">format</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msubsup><mo mathsize=\"0.900em\">=</mo><mrow><mo>{</mo><mtable columnspacing=\"5pt\" displaystyle=\"true\" rowspacing=\"0pt\"><mtr><mtd class=\"ltx_align_left\" columnalign=\"left\"><mrow><mn mathsize=\"0.900em\">1</mn><mo mathsize=\"0.900em\">,</mo></mrow></mtd><mtd class=\"ltx_align_left\" columnalign=\"left\"><mrow><mrow><mtext mathsize=\"0.900em\">if </mtext><mo lspace=\"0em\" rspace=\"0em\">​</mo><msup><mi mathsize=\"0.900em\">y</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em",
+        "label": null
+      },
+      {
+        "latex": "\\textbf{R}_{\\text{format}}^{(k)}=\\begin{cases}1,&\\text{if }y^{(k)}\\text{ matches }\\mathcal{S},\\\\\n0,&\\text{otherwise.}\\end{cases}",
+        "mathml": "<math alttext=\"\\textbf{R}_{\\text{format}}^{(k)}=\\begin{cases}1,&amp;\\text{if }y^{(k)}\\text{ matches }\\mathcal{S},\\\\\n0,&amp;\\text{otherwise.}\\end{cases}\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex4.m1\" intent=\":literal\"><semantics><mrow><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">format</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msubsup><mo mathsize=\"0.900em\">=</mo><mrow><mo>{</mo><mtable columnspacing=\"5pt\" displaystyle=\"true\" rowspacing=\"0pt\"><mtr><mtd class=\"ltx_align_left\" columnalign=\"left\"><mrow><mn mathsize=\"0.900em\">1</mn><mo mathsize=\"0.900em\">,</mo></mrow></mtd><mtd class=\"ltx_align_left\" columnalign=\"left\"><mrow><mrow><mtext mathsize=\"0.900em\">if </mtext><mo lspace=\"0em\" rspace=\"0em\">​</mo><msup><mi mathsize=\"0.900em\">y</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em",
+        "label": null
+      },
+      {
+        "latex": "\\mathrm{IoU}\\;=\\;\\frac{\\left|[t_{s},t_{e}]\\cap[t^{\\prime}_{s},t^{\\prime}_{e}]\\right|}{\\left|[t_{s},t_{e}]\\cup[t^{\\prime}_{s},t^{\\prime}_{e}]\\right|}.",
+        "mathml": "<math alttext=\"\\mathrm{IoU}\\;=\\;\\frac{\\left|[t_{s},t_{e}]\\cap[t^{\\prime}_{s},t^{\\prime}_{e}]\\right|}{\\left|[t_{s},t_{e}]\\cup[t^{\\prime}_{s},t^{\\prime}_{e}]\\right|}.\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex5.m1\" intent=\":literal\"><semantics><mrow><mrow><mi mathsize=\"0.900em\">IoU</mi><mo lspace=\"0.558em\" mathsize=\"0.900em\" rspace=\"0.558em\">=</mo><mfrac><mrow><mo>|</mo><mrow><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">[</mo><msub><mi mathsize=\"0.900em\">t</mi><mi mathsize=\"0.900em\">s</mi></msub><mo mathsize=\"0.900em\">,</mo><msub><mi mathsize=\"0.900em\">t</mi><mi mathsize=\"0.900em\">e</mi></msub><mo maxsize=\"0.900em\" minsize=\"0.900em\">]</mo></mrow><mo mathsize=\"0.900em\">∩</mo><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">[</mo><msubsup><mi mathsize=\"0.900em\">t</mi><mi mathsize=\"0.900em\">s</mi><mo mathsize=\"0.900em\">′</mo></msubsup><mo mathsize=\"0.900em\">,</mo><msubsup><mi mathsize=\"0.900em\">t</mi><mi mathsize=\"0.900em\">e</mi><mo mathsize=\"0.900em\">′</mo></msubsup><mo maxsize=\"0.900em\" mi",
+        "label": null
+      },
+      {
+        "latex": "\\mathrm{IoU}\\;=\\;\\frac{\\left|[t_{s},t_{e}]\\cap[t^{\\prime}_{s},t^{\\prime}_{e}]\\right|}{\\left|[t_{s},t_{e}]\\cup[t^{\\prime}_{s},t^{\\prime}_{e}]\\right|}.",
+        "mathml": "<math alttext=\"\\mathrm{IoU}\\;=\\;\\frac{\\left|[t_{s},t_{e}]\\cap[t^{\\prime}_{s},t^{\\prime}_{e}]\\right|}{\\left|[t_{s},t_{e}]\\cup[t^{\\prime}_{s},t^{\\prime}_{e}]\\right|}.\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex5.m1\" intent=\":literal\"><semantics><mrow><mrow><mi mathsize=\"0.900em\">IoU</mi><mo lspace=\"0.558em\" mathsize=\"0.900em\" rspace=\"0.558em\">=</mo><mfrac><mrow><mo>|</mo><mrow><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">[</mo><msub><mi mathsize=\"0.900em\">t</mi><mi mathsize=\"0.900em\">s</mi></msub><mo mathsize=\"0.900em\">,</mo><msub><mi mathsize=\"0.900em\">t</mi><mi mathsize=\"0.900em\">e</mi></msub><mo maxsize=\"0.900em\" minsize=\"0.900em\">]</mo></mrow><mo mathsize=\"0.900em\">∩</mo><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">[</mo><msubsup><mi mathsize=\"0.900em\">t</mi><mi mathsize=\"0.900em\">s</mi><mo mathsize=\"0.900em\">′</mo></msubsup><mo mathsize=\"0.900em\">,</mo><msubsup><mi mathsize=\"0.900em\">t</mi><mi mathsize=\"0.900em\">e</mi><mo mathsize=\"0.900em\">′</mo></msubsup><mo maxsize=\"0.900em\" mi",
+        "label": null
+      },
+      {
+        "latex": "\\textbf{R}_{\\text{time}}^{(k)}\\;=\\;\\mathrm{IoU}^{(k)}.",
+        "mathml": "<math alttext=\"\\textbf{R}_{\\text{time}}^{(k)}\\;=\\;\\mathrm{IoU}^{(k)}.\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex6.m1\" intent=\":literal\"><semantics><mrow><mrow><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">time</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msubsup><mo lspace=\"0.558em\" mathsize=\"0.900em\" rspace=\"0.558em\">=</mo><msup><mi mathsize=\"0.900em\">IoU</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup></mrow><mo lspace=\"0em\" mathsize=\"0.900em\">.</mo></mrow><annotation encoding=\"application/x-tex\">\\textbf{R}_{\\text{time}}^{(k)}\\;=\\;\\mathrm{IoU}^{(k)}.</annotation></semantics></math>",
+        "label": null
+      },
+      {
+        "latex": "\\textbf{R}_{\\text{time}}^{(k)}\\;=\\;\\mathrm{IoU}^{(k)}.",
+        "mathml": "<math alttext=\"\\textbf{R}_{\\text{time}}^{(k)}\\;=\\;\\mathrm{IoU}^{(k)}.\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex6.m1\" intent=\":literal\"><semantics><mrow><mrow><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">time</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msubsup><mo lspace=\"0.558em\" mathsize=\"0.900em\" rspace=\"0.558em\">=</mo><msup><mi mathsize=\"0.900em\">IoU</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup></mrow><mo lspace=\"0em\" mathsize=\"0.900em\">.</mo></mrow><annotation encoding=\"application/x-tex\">\\textbf{R}_{\\text{time}}^{(k)}\\;=\\;\\mathrm{IoU}^{(k)}.</annotation></semantics></math>",
+        "label": null
+      },
+      {
+        "latex": "\\textbf{R}^{(k)}\\;=\\;\\textbf{R}_{\\text{acc}}^{(k)}\\;+\\;\\textbf{R}_{\\text{format}}^{(k)}\\;+\\;\\textbf{R}_{\\text{time}}^{(k)}.",
+        "mathml": "<math alttext=\"\\textbf{R}^{(k)}\\;=\\;\\textbf{R}_{\\text{acc}}^{(k)}\\;+\\;\\textbf{R}_{\\text{format}}^{(k)}\\;+\\;\\textbf{R}_{\\text{time}}^{(k)}.\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex7.m1\" intent=\":literal\"><semantics><mrow><mrow><msup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup><mo lspace=\"0.558em\" mathsize=\"0.900em\" rspace=\"0.558em\">=</mo><mrow><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">acc</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msubsup><mo mathsize=\"0.900em\" rspace=\"0.502em\">+</mo><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">format</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</",
+        "label": null
+      },
+      {
+        "latex": "\\textbf{R}^{(k)}\\;=\\;\\textbf{R}_{\\text{acc}}^{(k)}\\;+\\;\\textbf{R}_{\\text{format}}^{(k)}\\;+\\;\\textbf{R}_{\\text{time}}^{(k)}.",
+        "mathml": "<math alttext=\"\\textbf{R}^{(k)}\\;=\\;\\textbf{R}_{\\text{acc}}^{(k)}\\;+\\;\\textbf{R}_{\\text{format}}^{(k)}\\;+\\;\\textbf{R}_{\\text{time}}^{(k)}.\" class=\"ltx_Math\" display=\"block\" id=\"S4.Ex7.m1\" intent=\":literal\"><semantics><mrow><mrow><msup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup><mo lspace=\"0.558em\" mathsize=\"0.900em\" rspace=\"0.558em\">=</mo><mrow><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">acc</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msubsup><mo mathsize=\"0.900em\" rspace=\"0.502em\">+</mo><msubsup><mtext class=\"ltx_mathvariant_bold\" mathsize=\"0.900em\">R</mtext><mtext mathsize=\"0.900em\">format</mtext><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</",
+        "label": null
+      },
+      {
+        "latex": "\\mathcal{L}(\\theta)=-\\sum_{t=1}^{T}\\log p_{\\theta}(x_{t}\\mid x_{<t}),",
+        "mathml": "<math alttext=\"\\mathcal{L}(\\theta)=-\\sum_{t=1}^{T}\\log p_{\\theta}(x_{t}\\mid x_{&lt;t}),\" class=\"ltx_Math\" display=\"block\" id=\"S10.Ex8.m1\" intent=\":literal\"><semantics><mrow><mrow><mrow><mi class=\"ltx_font_mathcaligraphic\" mathsize=\"1.440em\">ℒ</mi><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo maxsize=\"1.440em\" minsize=\"1.440em\">(</mo><mi mathsize=\"1.440em\">θ</mi><mo maxsize=\"1.440em\" minsize=\"1.440em\">)</mo></mrow></mrow><mo mathsize=\"1.440em\">=</mo><mrow><mo mathsize=\"1.440em\">−</mo><mrow><munderover><mo maxsize=\"1.440em\" minsize=\"1.440em\" movablelimits=\"false\" stretchy=\"true\">∑</mo><mrow><mi mathsize=\"1.440em\">t</mi><mo mathsize=\"1.440em\">=</mo><mn mathsize=\"1.440em\">1</mn></mrow><mi mathsize=\"1.440em\">T</mi></munderover><mrow><mrow><mi mathsize=\"1.440em\">log</mi><mo lspace=\"0.167em\">⁡</mo><msub><mi mathsize=\"1.440em\">p</mi><mi mathsize=\"1.440em\">θ</mi></msub></mrow><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo maxsize=\"1.440em\" minsize=\"1.440em\">(</mo><mrow><msub><mi mathsize=\"1.440e",
+        "label": null
+      },
+      {
+        "latex": "\\mathcal{L}(\\theta)=-\\sum_{t=1}^{T}\\log p_{\\theta}(x_{t}\\mid x_{<t}),",
+        "mathml": "<math alttext=\"\\mathcal{L}(\\theta)=-\\sum_{t=1}^{T}\\log p_{\\theta}(x_{t}\\mid x_{&lt;t}),\" class=\"ltx_Math\" display=\"block\" id=\"S10.Ex8.m1\" intent=\":literal\"><semantics><mrow><mrow><mrow><mi class=\"ltx_font_mathcaligraphic\" mathsize=\"1.440em\">ℒ</mi><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo maxsize=\"1.440em\" minsize=\"1.440em\">(</mo><mi mathsize=\"1.440em\">θ</mi><mo maxsize=\"1.440em\" minsize=\"1.440em\">)</mo></mrow></mrow><mo mathsize=\"1.440em\">=</mo><mrow><mo mathsize=\"1.440em\">−</mo><mrow><munderover><mo maxsize=\"1.440em\" minsize=\"1.440em\" movablelimits=\"false\" stretchy=\"true\">∑</mo><mrow><mi mathsize=\"1.440em\">t</mi><mo mathsize=\"1.440em\">=</mo><mn mathsize=\"1.440em\">1</mn></mrow><mi mathsize=\"1.440em\">T</mi></munderover><mrow><mrow><mi mathsize=\"1.440em\">log</mi><mo lspace=\"0.167em\">⁡</mo><msub><mi mathsize=\"1.440em\">p</mi><mi mathsize=\"1.440em\">θ</mi></msub></mrow><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo maxsize=\"1.440em\" minsize=\"1.440em\">(</mo><mrow><msub><mi mathsize=\"1.440e",
+        "label": null
+      },
+      {
+        "latex": "\\displaystyle y^{(k)}\\sim\\pi_{\\theta_{\\mathrm{old}}}(\\cdot\\mid x),\\qquad k=1,\\ldots,K,",
+        "mathml": "<math alttext=\"\\displaystyle y^{(k)}\\sim\\pi_{\\theta_{\\mathrm{old}}}(\\cdot\\mid x),\\qquad k=1,\\ldots,K,\" class=\"ltx_math_unparsed\" display=\"inline\" id=\"S10.Ex9X.m2\" intent=\":literal\"><semantics><mrow><msup><mi mathsize=\"0.900em\">y</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup><mo mathsize=\"0.900em\">∼</mo><msub><mi mathsize=\"0.900em\">π</mi><msub><mi mathsize=\"0.900em\">θ</mi><mi mathsize=\"0.900em\">old</mi></msub></msub><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mo lspace=\"0em\" mathsize=\"0.900em\" rspace=\"0em\">⋅</mo><mo lspace=\"0em\" mathsize=\"0.900em\" rspace=\"0.167em\">∣</mo><mi mathsize=\"0.900em\">x</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow><mo mathsize=\"0.900em\" rspace=\"1.087em\">,</mo><mi mathsize=\"0.900em\">k</mi><mo mathsize=\"0.900em\">=</mo><mn mathsize=\"0.900em\">1</mn><mo mathsize=\"0.900em\">,</mo><mi mathsize=\"0.900em\" mathvariant=\"normal\">…</mi><mo mathsize=\"0.900em\"",
+        "label": null
+      },
+      {
+        "latex": "\\displaystyle y^{(k)}\\sim\\pi_{\\theta_{\\mathrm{old}}}(\\cdot\\mid x),\\qquad k=1,\\ldots,K,",
+        "mathml": "<math alttext=\"\\displaystyle y^{(k)}\\sim\\pi_{\\theta_{\\mathrm{old}}}(\\cdot\\mid x),\\qquad k=1,\\ldots,K,\" class=\"ltx_math_unparsed\" display=\"inline\" id=\"S10.Ex9X.m2\" intent=\":literal\"><semantics><mrow><msup><mi mathsize=\"0.900em\">y</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup><mo mathsize=\"0.900em\">∼</mo><msub><mi mathsize=\"0.900em\">π</mi><msub><mi mathsize=\"0.900em\">θ</mi><mi mathsize=\"0.900em\">old</mi></msub></msub><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mo lspace=\"0em\" mathsize=\"0.900em\" rspace=\"0em\">⋅</mo><mo lspace=\"0em\" mathsize=\"0.900em\" rspace=\"0.167em\">∣</mo><mi mathsize=\"0.900em\">x</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow><mo mathsize=\"0.900em\" rspace=\"1.087em\">,</mo><mi mathsize=\"0.900em\">k</mi><mo mathsize=\"0.900em\">=</mo><mn mathsize=\"0.900em\">1</mn><mo mathsize=\"0.900em\">,</mo><mi mathsize=\"0.900em\" mathvariant=\"normal\">…</mi><mo mathsize=\"0.900em\"",
+        "label": null
+      },
+      {
+        "latex": "\\displaystyle y^{(k)}=(y^{(k)}_{1},\\ldots,y^{(k)}_{T_{k}}),\\hskip 18.49988ptT_{k}=\\text{len}(y^{(k)}).",
+        "mathml": "<math alttext=\"\\displaystyle y^{(k)}=(y^{(k)}_{1},\\ldots,y^{(k)}_{T_{k}}),\\hskip 18.49988ptT_{k}=\\text{len}(y^{(k)}).\" class=\"ltx_Math\" display=\"inline\" id=\"S10.Ex9Xa.m2\" intent=\":literal\"><semantics><mrow><mrow><mrow><msup><mi mathsize=\"0.900em\">y</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup><mo mathsize=\"0.900em\">=</mo><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><msubsup><mi mathsize=\"0.900em\">y</mi><mn mathsize=\"0.900em\">1</mn><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msubsup><mo mathsize=\"0.900em\">,</mo><mi mathsize=\"0.900em\" mathvariant=\"normal\">…</mi><mo mathsize=\"0.900em\">,</mo><msubsup><mi mathsize=\"0.900em\">y</mi><msub><mi mathsize=\"0.900em\">T</mi><mi mathsize=\"0.900em\">k</mi></msub><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.9",
+        "label": null
+      },
+      {
+        "latex": "\\displaystyle b=\\frac{1}{K}\\sum_{k=1}^{K}R^{(k)},\\hskip 18.49988ptA^{(k)}=R^{(k)}-b,",
+        "mathml": "<math alttext=\"\\displaystyle b=\\frac{1}{K}\\sum_{k=1}^{K}R^{(k)},\\hskip 18.49988ptA^{(k)}=R^{(k)}-b,\" class=\"ltx_Math\" display=\"inline\" id=\"S10.Ex10X.m2\" intent=\":literal\"><semantics><mrow><mrow><mrow><mi mathsize=\"0.900em\">b</mi><mo mathsize=\"0.900em\">=</mo><mrow><mstyle displaystyle=\"true\"><mfrac><mn mathsize=\"0.900em\">1</mn><mi mathsize=\"0.900em\">K</mi></mfrac></mstyle><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mstyle displaystyle=\"true\"><munderover><mo maxsize=\"0.900em\" minsize=\"0.900em\" movablelimits=\"false\" stretchy=\"true\">∑</mo><mrow><mi mathsize=\"0.900em\">k</mi><mo mathsize=\"0.900em\">=</mo><mn mathsize=\"0.900em\">1</mn></mrow><mi mathsize=\"0.900em\">K</mi></munderover></mstyle><msup><mi mathsize=\"0.900em\">R</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup></mrow></mrow></mrow><mo mathsize=\"0.900em\" rspace=\"2.017em\">,</mo><mrow><msup><mi mathsize=\"0.900em\">A</mi><mrow><mo maxsize=\"0.900e",
+        "label": null
+      },
+      {
+        "latex": "\\displaystyle b=\\frac{1}{K}\\sum_{k=1}^{K}R^{(k)},\\hskip 18.49988ptA^{(k)}=R^{(k)}-b,",
+        "mathml": "<math alttext=\"\\displaystyle b=\\frac{1}{K}\\sum_{k=1}^{K}R^{(k)},\\hskip 18.49988ptA^{(k)}=R^{(k)}-b,\" class=\"ltx_Math\" display=\"inline\" id=\"S10.Ex10X.m2\" intent=\":literal\"><semantics><mrow><mrow><mrow><mi mathsize=\"0.900em\">b</mi><mo mathsize=\"0.900em\">=</mo><mrow><mstyle displaystyle=\"true\"><mfrac><mn mathsize=\"0.900em\">1</mn><mi mathsize=\"0.900em\">K</mi></mfrac></mstyle><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mstyle displaystyle=\"true\"><munderover><mo maxsize=\"0.900em\" minsize=\"0.900em\" movablelimits=\"false\" stretchy=\"true\">∑</mo><mrow><mi mathsize=\"0.900em\">k</mi><mo mathsize=\"0.900em\">=</mo><mn mathsize=\"0.900em\">1</mn></mrow><mi mathsize=\"0.900em\">K</mi></munderover></mstyle><msup><mi mathsize=\"0.900em\">R</mi><mrow><mo maxsize=\"0.900em\" minsize=\"0.900em\">(</mo><mi mathsize=\"0.900em\">k</mi><mo maxsize=\"0.900em\" minsize=\"0.900em\">)</mo></mrow></msup></mrow></mrow></mrow><mo mathsize=\"0.900em\" rspace=\"2.017em\">,</mo><mrow><msup><mi mathsize=\"0.900em\">A</mi><mrow><mo maxsize=\"0.900e",
+        "label": null
+      },
+      {
+        "latex": "\\begin{aligned} \\mathcal{J}(\\theta)&\\!\\!=\\mathbb{E}_{\\begin{subarray}{c}x\\sim\\mathcal{D}\\\\\n\\{y^{(k)}\\}\\sim\\pi_{\\theta_{\\mathrm{old}}}(\\cdot\\mid x)\\end{subarray}}\\!\\bigg[\\frac{1}{K}\\sum_{k=1}^{K}\\frac{1}{T_{k}}\\sum_{t=1}^{T_{k}}A^{(k)}\\log\\pi_{\\theta}\\!\\big(y^{(k)}_{t}\\mid x,y^{(k)}_{<t}\\big)\\bigg]\\\\[-1.0pt]\n&\\!\\!-\\beta\\,\\mathbb{E}_{x\\sim\\mathcal{D}}\\!\\bigg[\\frac{1}{K}\\sum_{k=1}^{K}\\frac{1}{T_{k}}\\sum_{t=1}^{T_{k}}D_{\\mathrm{KL}}\\!\\Big(\\pi_{\\theta}(\\cdot\\!\\mid\\!x,y^{(k)}_{<t})\\,\\|\\,\\pi_{\\mathrm{ref}}(\\cdot\\!\\mid\\!x,y^{(k)}_{<t})\\Big)\\bigg],\\end{aligned}",
+        "mathml": "<math alttext=\"\\begin{aligned} \\mathcal{J}(\\theta)&amp;\\!\\!=\\mathbb{E}_{\\begin{subarray}{c}x\\sim\\mathcal{D}\\\\\n\\{y^{(k)}\\}\\sim\\pi_{\\theta_{\\mathrm{old}}}(\\cdot\\mid x)\\end{subarray}}\\!\\bigg[\\frac{1}{K}\\sum_{k=1}^{K}\\frac{1}{T_{k}}\\sum_{t=1}^{T_{k}}A^{(k)}\\log\\pi_{\\theta}\\!\\big(y^{(k)}_{t}\\mid x,y^{(k)}_{&lt;t}\\big)\\bigg]\\\\[-1.0pt]\n&amp;\\!\\!-\\beta\\,\\mathbb{E}_{x\\sim\\mathcal{D}}\\!\\bigg[\\frac{1}{K}\\sum_{k=1}^{K}\\frac{1}{T_{k}}\\sum_{t=1}^{T_{k}}D_{\\mathrm{KL}}\\!\\Big(\\pi_{\\theta}(\\cdot\\!\\mid\\!x,y^{(k)}_{&lt;t})\\,\\|\\,\\pi_{\\mathrm{ref}}(\\cdot\\!\\mid\\!x,y^{(k)}_{&lt;t})\\Big)\\bigg],\\end{aligned}\" class=\"ltx_math_unparsed\" display=\"inline\" id=\"S10.E1.m1.m1\" intent=\":literal\"><semantics><mtable columnspacing=\"0pt\" rowspacing=\"0pt\"><mtr><mtd class=\"ltx_align_right\" columnalign=\"right\"><mrow><mi class=\"ltx_font_mathcaligraphic\" mathsize=\"1.440em\">𝒥</mi><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo maxsize=\"1.440em\" minsize=\"1.440em\">(</mo><mi mathsize=\"1.440em\">θ</mi><mo maxsize=\"1.440em\" minsize=\"1.4",
+        "label": "(1)"
+      },
+      {
+        "latex": "\\begin{aligned} \\mathcal{J}(\\theta)&\\!\\!=\\mathbb{E}_{\\begin{subarray}{c}x\\sim\\mathcal{D}\\\\\n\\{y^{(k)}\\}\\sim\\pi_{\\theta_{\\mathrm{old}}}(\\cdot\\mid x)\\end{subarray}}\\!\\bigg[\\frac{1}{K}\\sum_{k=1}^{K}\\frac{1}{T_{k}}\\sum_{t=1}^{T_{k}}A^{(k)}\\log\\pi_{\\theta}\\!\\big(y^{(k)}_{t}\\mid x,y^{(k)}_{<t}\\big)\\bigg]\\\\[-1.0pt]\n&\\!\\!-\\beta\\,\\mathbb{E}_{x\\sim\\mathcal{D}}\\!\\bigg[\\frac{1}{K}\\sum_{k=1}^{K}\\frac{1}{T_{k}}\\sum_{t=1}^{T_{k}}D_{\\mathrm{KL}}\\!\\Big(\\pi_{\\theta}(\\cdot\\!\\mid\\!x,y^{(k)}_{<t})\\,\\|\\,\\pi_{\\mathrm{ref}}(\\cdot\\!\\mid\\!x,y^{(k)}_{<t})\\Big)\\bigg],\\end{aligned}",
+        "mathml": "<math alttext=\"\\begin{aligned} \\mathcal{J}(\\theta)&amp;\\!\\!=\\mathbb{E}_{\\begin{subarray}{c}x\\sim\\mathcal{D}\\\\\n\\{y^{(k)}\\}\\sim\\pi_{\\theta_{\\mathrm{old}}}(\\cdot\\mid x)\\end{subarray}}\\!\\bigg[\\frac{1}{K}\\sum_{k=1}^{K}\\frac{1}{T_{k}}\\sum_{t=1}^{T_{k}}A^{(k)}\\log\\pi_{\\theta}\\!\\big(y^{(k)}_{t}\\mid x,y^{(k)}_{&lt;t}\\big)\\bigg]\\\\[-1.0pt]\n&amp;\\!\\!-\\beta\\,\\mathbb{E}_{x\\sim\\mathcal{D}}\\!\\bigg[\\frac{1}{K}\\sum_{k=1}^{K}\\frac{1}{T_{k}}\\sum_{t=1}^{T_{k}}D_{\\mathrm{KL}}\\!\\Big(\\pi_{\\theta}(\\cdot\\!\\mid\\!x,y^{(k)}_{&lt;t})\\,\\|\\,\\pi_{\\mathrm{ref}}(\\cdot\\!\\mid\\!x,y^{(k)}_{&lt;t})\\Big)\\bigg],\\end{aligned}\" class=\"ltx_math_unparsed\" display=\"inline\" id=\"S10.E1.m1.m1\" intent=\":literal\"><semantics><mtable columnspacing=\"0pt\" rowspacing=\"0pt\"><mtr><mtd class=\"ltx_align_right\" columnalign=\"right\"><mrow><mi class=\"ltx_font_mathcaligraphic\" mathsize=\"1.440em\">𝒥</mi><mo lspace=\"0em\" rspace=\"0em\">​</mo><mrow><mo maxsize=\"1.440em\" minsize=\"1.440em\">(</mo><mi mathsize=\"1.440em\">θ</mi><mo maxsize=\"1.440em\" minsize=\"1.4",
+        "label": "(1)"
+      }
+    ],
+    "references": [
+      "Bai et al. [2025] Shuai Bai, Keqin Chen, Xuejing Liu, Jialin Wang, Wenbin Ge, Sibo Song, Kai Dang, Peng Wang, Shijie Wang, Jun Tang, et al. Qwen2. 5-vl technical report. arXiv preprint arXiv:2502.13923, 2025.",
+      "Cai et al. [2024] Mu Cai, Reuben Tan, Jianrui Zhang, Bocheng Zou, Kai Zhang, Feng Yao, Fangrui Zhu, Jing Gu, Yiwu Zhong, Yuzhang Shang, et al. Temporalbench: Benchmarking fine-grained temporal understanding for multimodal video models. arXiv preprint arXiv:2410.10818, 2024.",
+      "Cakmak and Thomaz [2014] Maya Cakmak and Andrea L Thomaz. Eliciting good teaching from humans for machine learners. Artificial Intelligence, 217:198–215, 2014.",
+      "Chen et al. [2025] Yukang Chen, Wei Huang, Baifeng Shi, Qinghao Hu, Hanrong Ye, Ligeng Zhu, Zhijian Liu, Pavlo Molchanov, Jan Kautz, Xiaojuan Qi, et al. Scaling rl to long videos. arXiv preprint arXiv:2507.07966, 2025.",
+      "Comanici et al. [2025] Gheorghe Comanici, Eric Bieber, Mike Schaekermann, Ice Pasupat, Noveen Sachdeva, Inderjit Dhillon, Marcel Blistein, Ori Ram, Dan Zhang, Evan Rosen, et al. Gemini 2.5: Pushing the frontier with advanced reasoning, multimodality, long context, and next generation agentic capabilities. arXiv preprint arXiv:2507.06261, 2025.",
+      "Deng et al. [2025] Yihe Deng, Hritik Bansal, Fan Yin, Nanyun Peng, Wei Wang, and Kai-Wei Chang. Openvlthinker: An early exploration to complex vision-language reasoning via iterative self-improvement. arXiv preprint arXiv:2503.17352, 2025.",
+      "Fan et al. [2025] Yue Fan, Xuehai He, Diji Yang, Kaizhi Zheng, Ching-Chen Kuo, Yuting Zheng, Sravana Jyothi Narayanaraju, Xinze Guan, and Xin Eric Wang. Grit: Teaching mllms to think with images. In Advances in Neural Information Processing Systems, 2025.",
+      "Feng et al. [2025] Kaituo Feng, Kaixiong Gong, Bohao Li, Zonghao Guo, Yibing Wang, Tianshuo Peng, Junfei Wu, Xiaoying Zhang, Benyou Wang, and Xiangyu Yue. Video-r1: Reinforcing video reasoning in mllms. arXiv preprint arXiv:2503.21776, 2025.",
+      "Fu et al. [2025] Chaoyou Fu, Yuhan Dai, Yongdong Luo, Lei Li, Shuhuai Ren, Renrui Zhang, Zihan Wang, Chenyu Zhou, Yunhang Shen, Mengdan Zhang, et al. Video-mme: The first-ever comprehensive evaluation benchmark of multi-modal llms in video analysis. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 24108–24118, 2025.",
+      "Gao et al. [2017] Jiyang Gao, Chen Sun, Zhenheng Yang, and Ram Nevatia. Tall: Temporal activity localization via language query. In Proceedings of the IEEE international conference on computer vision, pages 5267–5275, 2017.",
+      "Guo et al. [2025] Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song, Ruoyu Zhang, Runxin Xu, Qihao Zhu, Shirong Ma, Peiyi Wang, Xiao Bi, et al. Deepseek-r1: Incentivizing reasoning capability in llms via reinforcement learning. arXiv preprint arXiv:2501.12948, 2025.",
+      "Hong et al. [2025] Wenyi Hong, Wenmeng Yu, Xiaotao Gu, Guo Wang, Guobing Gan, Haomiao Tang, Jiale Cheng, Ji Qi, Junhui Ji, Lihang Pan, et al. Glm-4.5v and glm-4.1v-thinking: Towards versatile multimodal reasoning with scalable reinforcement learning. arXiv preprint arXiv:2507.01006, 2025.",
+      "Hu et al. [2025] Kairui Hu, Penghao Wu, Fanyi Pu, Wang Xiao, Yuanhan Zhang, Xiang Yue, Bo Li, and Ziwei Liu. Video-mmmu: Evaluating knowledge acquisition from multi-discipline professional videos. arXiv preprint arXiv:2501.13826, 2025.",
+      "Huang et al. [2020] Gabriel Huang, Bo Pang, Zhenhai Zhu, Clara Rivera, and Radu Soricut. Multimodal 2gpretraining for dense video captioning. arXiv preprint arXiv:2011.11760, 2020.",
+      "Huang et al. [2025] Wenxuan Huang, Bohan Jia, Zijie Zhai, Shaosheng Cao, Zheyu Ye, Fei Zhao, Zhe Xu, Yao Hu, and Shaohui Lin. Vision-r1: Incentivizing reasoning capability in multimodal large language models. arXiv preprint arXiv:2503.06749, 2025.",
+      "Hurst et al. [2024] Aaron Hurst, Adam Lerer, Adam P Goucher, Adam Perelman, Aditya Ramesh, Aidan Clark, AJ Ostrow, Akila Welihinda, Alan Hayes, Alec Radford, et al. Gpt-4o system card. arXiv preprint arXiv:2410.21276, 2024.",
+      "Jaech et al. [2024] Aaron Jaech, Adam Kalai, Adam Lerer, Adam Richardson, Ahmed El-Kishky, Aiden Low, Alec Helyar, Aleksander Madry, Alex Beutel, Alex Carney, et al. Openai o1 system card. arXiv preprint arXiv:2412.16720, 2024.",
+      "Krishna et al. [2017] Ranjay Krishna, Kenji Hata, Frederic Ren, Li Fei-Fei, and Juan Carlos Niebles. Dense-captioning events in videos. In Proceedings of the IEEE international conference on computer vision, pages 706–715, 2017.",
+      "Kwon et al. [2023] Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, Lianmin Zheng, Cody Hao Yu, Joseph Gonzalez, Hao Zhang, and Ion Stoica. Efficient memory management for large language model serving with pagedattention. In Proceedings of the 29th symposium on operating systems principles, pages 611–626, 2023.",
+      "Leng et al. [2025] Sicong Leng, Jing Wang, Jiaxi Li, Hao Zhang, Zhiqiang Hu, Boqiang Zhang, Yuming Jiang, Hang Zhang, Xin Li, Lidong Bing, et al. Mmr1: Enhancing multimodal reasoning with variance-aware sampling and open resources. arXiv preprint arXiv:2509.21268, 2025.",
+      "Li et al. [2025a] Gang Li, Jizhong Liu, Heinrich Dinkel, Yadong Niu, Junbo Zhang, and Jian Luan. Reinforcement learning outperforms supervised fine-tuning: A case study on audio question answering. arXiv preprint arXiv:2503.11197, 2025a.",
+      "Li et al. [2024a] Jiaxiang Li, Siliang Zeng, Hoi-To Wai, Chenliang Li, Alfredo Garcia, and Mingyi Hong. Getting more juice out of the sft data: Reward learning from human demonstration improves sft for llm alignment. In Advances in Neural Information Processing Systems, pages 124292–124318, 2024a.",
+      "Li et al. [2024b] Kunchang Li, Yali Wang, Yinan He, Yizhuo Li, Yi Wang, Yi Liu, Zun Wang, Jilan Xu, Guo Chen, Ping Luo, et al. Mvbench: A comprehensive multi-modal video understanding benchmark. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 22195–22206, 2024b.",
+      "Li et al. [2025b] Xinhao Li, Ziang Yan, Desen Meng, Lu Dong, Xiangyu Zeng, Yinan He, Yali Wang, Yu Qiao, Yi Wang, and Limin Wang. Videochat-r1: Enhancing spatio-temporal perception via reinforcement fine-tuning. arXiv preprint arXiv:2504.06958, 2025b.",
+      "Li et al. [2025c] Yixuan Li, Changli Tang, Jimin Zhuang, Yudong Yang, Guangzhi Sun, Wei Li, Zejun Ma, and Chao Zhang. Improving llm video understanding with 16 frames per second. arXiv preprint arXiv:2503.13956, 2025c.",
+      "Liu et al. [2024] Yuanxin Liu, Shicheng Li, Yi Liu, Yuxiang Wang, Shuhuai Ren, Lei Li, Sishuo Chen, Xu Sun, and Lu Hou. Tempcompass: Do video llms really understand videos? arXiv preprint arXiv:2403.00476, 2024.",
+      "Liu et al. [2025a] Yuqi Liu, Bohao Peng, Zhisheng Zhong, Zihao Yue, Fanbin Lu, Bei Yu, and Jiaya Jia. Seg-zero: Reasoning-chain guided segmentation via cognitive reinforcement. arXiv preprint arXiv:2503.06520, 2025a.",
+      "Liu et al. [2025b] Ziyu Liu, Zeyi Sun, Yuhang Zang, Xiaoyi Dong, Yuhang Cao, Haodong Duan, Dahua Lin, and Jiaqi Wang. Visual-rft: Visual reinforcement fine-tuning. In Proceedings of the IEEE international conference on computer vision, 2025b.",
+      "LMMs-Lab [2025] LMMs-Lab. Lmms engine: A simple, unified multimodal framework for pretraining and finetuning., 2025.",
+      "Loshchilov and Hutter [2019] Ilya Loshchilov and Frank Hutter. Decoupled weight decay regularization. In International Conference on Learning Representations, 2019.",
+      "Meng et al. [2025] Fanqing Meng, Lingxiao Du, Zongkai Liu, Zhixiang Zhou, Quanfeng Lu, Daocheng Fu, Tiancheng Han, Botian Shi, Wenhai Wang, Junjun He, et al. Mm-eureka: Exploring the frontiers of multimodal reasoning with rule-based reinforcement learning. arXiv preprint arXiv:2503.07365, 2025.",
+      "Mo et al. [2025] Zhanfeng Mo, Xingxuan Li, Yuntao Chen, and Lidong Bing. Multi-agent tool-integrated policy optimization. arXiv preprint arXiv:2510.04678, 2025.",
+      "Qiao et al. [2025] Runqi Qiao, Qiuna Tan, Peiqing Yang, Yanzi Wang, Xiaowan Wang, Enhui Wan, Sitong Zhou, Guanting Dong, Yuchen Zeng, Yida Xu, et al. We-math 2.0: A versatile mathbook system for incentivizing visual mathematical reasoning. arXiv preprint arXiv:2508.10433, 2025.",
+      "Ren et al. [2024] Shuhuai Ren, Linli Yao, Shicheng Li, Xu Sun, and Lu Hou. Timechat: A time-sensitive multimodal large language model for long video understanding. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 14313–14323, 2024.",
+      "Shao et al. [2024] Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei Zhang, Mingchuan Zhang, YK Li, Yang Wu, et al. Deepseekmath: Pushing the limits of mathematical reasoning in open language models. arXiv preprint arXiv:2402.03300, 2024.",
+      "Shen et al. [2025] Haozhan Shen, Peng Liu, Jingcheng Li, Chunxin Fang, Yibo Ma, Jiajia Liao, Qiaoli Shen, Zilun Zhang, Kangjia Zhao, Qianqian Zhang, et al. Vlm-r1: A stable and generalizable r1-style large vision-language model. arXiv preprint arXiv:2504.07615, 2025.",
+      "Sheng et al. [2025] Guangming Sheng, Chi Zhang, Zilingfeng Ye, Xibin Wu, Wang Zhang, Ru Zhang, Yanghua Peng, Haibin Lin, and Chuan Wu. Hybridflow: A flexible and efficient rlhf framework. In Proceedings of the Twentieth European Conference on Computer Systems, pages 1279–1297, 2025.",
+      "Song et al. [2024] Enxin Song, Wenhao Chai, Guanhong Wang, Yucheng Zhang, Haoyang Zhou, Feiyang Wu, Haozhe Chi, Xun Guo, Tian Ye, Yanting Zhang, et al. Moviechat: From dense token to sparse memory for long video understanding. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 18221–18232, 2024.",
+      "Su et al. [2025] Alex Su, Haozhe Wang, Weiming Ren, Fangzhen Lin, and Wenhu Chen. Pixel reasoner: Incentivizing pixel-space reasoning with curiosity-driven reinforcement learning. arXiv preprint arXiv:2505.15966, 2025.",
+      "Sun et al. [2025] Haoyuan Sun, Jiaqi Wu, Bo Xia, Yifu Luo, Yifei Zhao, Kai Qin, Xufei Lv, Tiantian Zhang, Yongzhe Chang, and Xueqian Wang. Reinforcement fine-tuning powers reasoning capability of multimodal large language models. arXiv preprint arXiv:2505.18536, 2025.",
+      "Team et al. [2024] Gemini Team, Petko Georgiev, Ving Ian Lei, Ryan Burnell, Libin Bai, Anmol Gulati, Garrett Tanzer, Damien Vincent, Zhufeng Pan, Shibo Wang, et al. Gemini 1.5: Unlocking multimodal understanding across millions of tokens of context. arXiv preprint arXiv:2403.05530, 2024.",
+      "Team [2025a] OpenAI Team. Introducing gpt-5. https://openai.com/index/introducing-gpt-5/, 2025a.",
+      "Team [2025b] OpenAI Team. Thinking with images. https://openai.com/index/thinking-with-images/, 2025b.",
+      "Team [2025c] Qwen Team. Qwen3-vl: Sharper vision, deeper thought, broader action. https://qwen.ai/blog?from=research.latest-advancements-list&id=99f0335c4ad9ff6153e517418d48535ab6d8afef, 2025c.",
+      "Tian et al. [2025] Shulin Tian, Ruiqi Wang, Hongming Guo, Penghao Wu, Yuhao Dong, Xiuying Wang, Jingkang Yang, Hao Zhang, Hongyuan Zhu, and Ziwei Liu. Ego-r1: Chain-of-tool-thought for ultra-long egocentric video reasoning. arXiv preprint arXiv:2506.13654, 2025.",
+      "Wang et al. [2025a] Qi Wang, Yanrui Yu, Ye Yuan, Rui Mao, and Tianfei Zhou. Videorft: Incentivizing video reasoning capability in mllms via reinforced fine-tuning. arXiv preprint arXiv:2505.12434, 2025a.",
+      "Wang et al. [2025b] Shijian Wang, Jiarui Jin, Xingjian Wang, Linxin Song, Runhao Fu, Hecheng Wang, Zongyuan Ge, Yuan Lu, and Xuelian Cheng. Video-thinker: Sparking” thinking with videos” via reinforcement learning. arXiv preprint arXiv:2510.23473, 2025b.",
+      "Wang et al. [2024] Weihan Wang, Zehai He, Wenyi Hong, Yean Cheng, Xiaohan Zhang, Ji Qi, Xiaotao Gu, Shiyu Huang, Bin Xu, Yuxiao Dong, et al. Lvbench: An extreme long video understanding benchmark. arXiv preprint arXiv:2406.08035, 2024.",
+      "Wang et al. [2025c] Ye Wang, Ziheng Wang, Boshen Xu, Yang Du, Kejun Lin, Zihan Xiao, Zihao Yue, Jianzhong Ju, Liang Zhang, Dingyi Yang, et al. Time-r1: Post-training large vision language model for temporal video grounding. arXiv preprint arXiv:2503.13377, 2025c.",
+      "Wen et al. [2025] Cheng Wen, Tingwei Guo, Shuaijiang Zhao, Wei Zou, and Xiangang Li. Sari: Structured audio reasoning via curriculum-guided reinforcement learning. arXiv preprint arXiv:2504.15900, 2025.",
+      "Wu et al. [2024] Haoning Wu, Dongxu Li, Bei Chen, and Junnan Li. Longvideobench: A benchmark for long-context interleaved video-language understanding. In Advances in Neural Information Processing Systems, pages 28828–28857, 2024.",
+      "Wu et al. [2025] Junfei Wu, Jian Guan, Kaituo Feng, Qiang Liu, Shu Wu, Liang Wang, Wei Wu, and Tieniu Tan. Reinforcing spatial reasoning in vision-language models with interwoven thinking and visual drawing. arXiv preprint arXiv:2506.09965, 2025.",
+      "Xu et al. [2025] Guowei Xu, Peng Jin, Ziang Wu, Hao Li, Yibing Song, Lichao Sun, and Li Yuan. Llava-cot: Let vision language models reason step-by-step. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 2087–2098, 2025.",
+      "Yang et al. [2023] Antoine Yang, Arsha Nagrani, Ivan Laptev, Josef Sivic, and Cordelia Schmid. Vidchapters-7m: Video chapters at scale. Advances in Neural Information Processing Systems, 36:49428–49444, 2023.",
+      "Yang et al. [2025a] An Yang, Anfeng Li, Baosong Yang, Beichen Zhang, Binyuan Hui, Bo Zheng, Bowen Yu, Chang Gao, Chengen Huang, Chenxu Lv, et al. Qwen3 technical report. arXiv preprint arXiv:2505.09388, 2025a.",
+      "Yang et al. [2025b] Zhongyu Yang, Junhao Song, Siyang Song, Wei Pang, and Yingfang Yuan. Mermaid: Multi-perspective self-reflective agents with generative augmentation for emotion recognition. In Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing, pages 24650–24666, 2025b.",
+      "Yang et al. [2025c] Zuhao Yang, Yingchen Yu, Yunqing Zhao, Shijian Lu, and Song Bai. Timeexpert: An expert-guided video llm for video temporal grounding. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 24286–24296, 2025c.",
+      "Zhang et al. [2025a] Boqiang Zhang, Kehan Li, Zesen Cheng, Zhiqiang Hu, Yuqian Yuan, Guanzheng Chen, Sicong Leng, Yuming Jiang, Hang Zhang, Xin Li, et al. Videollama 3: Frontier multimodal foundation models for image and video understanding. arXiv preprint arXiv:2501.13106, 2025a.",
+      "Zhang et al. [2025b] Haoji Zhang, Xin Gu, Jiawen Li, Chixiang Ma, Sule Bai, Chubin Zhang, Bowen Zhang, Zhichao Zhou, Dongliang He, and Yansong Tang. Thinking with videos: Multimodal tool-augmented reinforcement learning for long video reasoning. arXiv preprint arXiv:2508.04416, 2025b.",
+      "Zhang et al. [2025c] Kaichen Zhang, Bo Li, Peiyuan Zhang, Fanyi Pu, Joshua Adrian Cahyono, Kairui Hu, Shuai Liu, Yuanhan Zhang, Jingkang Yang, Chunyuan Li, et al. Lmms-eval: Reality check on the evaluation of large multimodal models. In Findings of the Association for Computational Linguistics: NAACL 2025, pages 881–916, 2025c.",
+      "Zhang et al. [2025d] Kaichen Zhang, Keming Wu, Zuhao Yang, Kairui Hu, Bin Wang, Ziwei Liu, Xingxuan Li, and Lidong Bing. Openmmreasoner: Pushing the frontiers for multimodal reasoning with an open and general recipe. arXiv preprint arXiv:2511.16334, 2025d.",
+      "Zheng et al. [2024] Lianmin Zheng, Liangsheng Yin, Zhiqiang Xie, Chuyue Livia Sun, Jeff Huang, Cody Hao Yu, Shiyi Cao, Christos Kozyrakis, Ion Stoica, Joseph E Gonzalez, et al. Sglang: Efficient execution of structured language model programs. In Advances in neural information processing systems, pages 62557–62583, 2024.",
+      "Zheng et al. [2025] Ziwei Zheng, Michael Yang, Jack Hong, Chenxiao Zhao, Guohai Xu, Le Yang, Chao Shen, and Xing Yu. Deepeyes: Incentivizing” thinking with images” via reinforcement learning. arXiv preprint arXiv:2505.14362, 2025.",
+      "Zhong et al. [2025] Hao Zhong, Muzhi Zhu, Zongze Du, Zheng Huang, Canyu Zhao, Mingyu Liu, Wen Wang, Hao Chen, and Chunhua Shen. Omni-r1: Reinforcement learning for omnimodal reasoning via two-system collaboration. arXiv preprint arXiv:2505.20256, 2025.",
+      "Zhou et al. [2018] Luowei Zhou, Chenliang Xu, and Jason Corso. Towards automatic learning of procedures from web instructional videos. In Proceedings of the AAAI conference on artificial intelligence, 2018."
+    ],
+    "full_text": "## 1 Introduction\n\nUnderstanding long-form videos (>>15 minutes) poses a major challenge in multimodal intelligence [9, 13, 51, 48]. Compared with short clips, long videos contain complex event structures and require sustained comprehension across thousands of frames, supporting tasks such as video question answering (QA) [23, 26, 2, 51, 48], temporal grounding [10, 18, 54, 34, 57], and dense captioning [65, 18, 14]. These capabilities further underpin real-world applications such as soccer event spotting [25] and long-range film understanding [38]. Recent LMMs [8, 24, 46, 49, 58] exhibit promising short video reasoning, yet most rely on the R1-style paradigm [11]—supervised fine-tuning (SFT) with textual Chain-of-Thought (CoT), followed by Group Relative Policy Optimization (GRPO)-based reinforcement learning (RL) [35]. Such pipelines remain largely language-centric, limiting visual reasoning and increasing hallucinations in long-video scenarios [59]. Moreover, their uniform sampling fails to adaptively capture key visual evidence, often missing fine-grained or decisive moments critical for long-video reasoning. This motivates our central question: Can LMMs reliably reason over long videos by performing human-like visual operations to guide their reasoning?\n\nLet us consider the following scenario: a testee is asked to answer the question, “Which foot did the French player use to execute the volley, equalizing the score?” using only the silent video of a football match. Without audio, metadata, or timeline markers, the testee must rely purely on visual inspection. Based on common viewing habits, a human would typically jump through the video in coarse intervals, searching for strong visual indicators of a goal—such as crowd reactions, player celebrations, referee gestures, or scoreboard updates. After locating a likely scoring segment, the testee would rewind slightly and examine the surrounding frames more carefully to pinpoint the exact equalizing moment, and then verify the scoring foot using close-up shots. Notably, when we prompt two state-of-the-art proprietary LMMs (i.e., GPT-5 [42] and Gemini 2.5 Pro [5]) with the same task, the strategies they propose closely mirror this human-intuitive procedure (see Section 7).\n\nAs illustrated in Figure 1, the testee, seeking to save time, avoids scanning the entire video frame by frame. Instead, they first perform a coarse global skim and then zoom in on promising segments. When projected to the LMM setting, this global-to-local reasoning strategy enables models with limited context length to process extremely long videos effectively. To implement such a strategy, we design interleaved Multimodal Chain-of-Tool-Thought (iMCoTT) that enables LMMs to naturally interleave reasoning with on-demand temporal retrieval via dynamically selecting and re-inspecting interested video segments. Such LMM behaviors stem from their native temporal grounding capabilities, without an auxiliary expert model or external retriever. Our designed iMCoTT enables “looking again” by proposing a more robust time window, examining that snippet, and revising its hypothesis when necessary. Such capability helps reduce hallucinations and reveals more fine-grained details, akin to human self-reflection after realizing that an initially inspected segment was erroneous.\n\nThis human-inspired “Thinking with Long Videos” paradigm is naturally suitable for queries that either require aggregating clues across multiple shots or hinge on a brief and evidence-bearing segment within hours-long footage. Yet, the open-source community lacks training and evaluation data with such fine-grained queries: most public datasets emphasize general and high-level questions but rarely train and evaluate reasoning capability under a “Video Segment-In-A-Haystack” setting. We address this grand challenge by constructing VideoSIAH that comprises high-quality QA pairs and tool-augmented reasoning traces. VideoSIAH comprises 247.9K samples for SFT, 1.6K samples for agentic RL, and 15.4K samples for reinforcement fine-tuning (RFT), respectively. Besides, we curate a dedicated evaluation benchmark, VideoSIAH-Eval, comprising 1,280 QA pairs that have undergone human-in-the-loop validation [3], where each question’s supporting evidence lies within a narrow window relative to the full video duration.\n\nIn this paper, we introduce LongVT, an end-to-end agentic framework that elicits LMMs’ ability for “Thinking with Long Videos” via a three-stage training strategy with large-scale and high-quality Tool-augmented data from VideoSIAH. The first stage performs cold-start SFT that empowers the base LMM with three fundamental capabilities: (1) proposing a precise window for relevant event(s), (2) reasoning over densely resampled frames within the window, and (3) self-correcting when the window is suboptimal. The second stage adopts agentic RL for enhancing the model’s generalization over open-ended QA tasks. Unlike existing work that relies on answer-only rewards for video QA and IoU rewards for temporal grounding [8, 49], we design a joint answer-temporal grounding reward function that explicitly encourages exploratory rollouts with improved temporal localization while preserving answer correctness. The third stage leverages agentic RFT where the model is further optimized by utilizing filtered rollout traces distilled from its own RL-trained policy. This stage stabilizes agentic behaviors learned during RL and consolidates fine-grained temporal localization and multi-step reasoning.\n\nThe contributions of our work can be summarized in three major aspects. First, we introduce an end-to-end agentic paradigm that natively interleaves multimodal tool-augmented CoT with on-demand clip inspection over hours-long videos, thereby enabling LMMs to perform more effective and reliable long-video reasoning. Second, to facilitate training and evaluation of evidence-sparse long-video reasoning, we construct a scalable data pipeline that produces diverse and high-quality QAs and tool-integrated reasoning traces, and a dedicated benchmark under a video segment-in-a-haystack setting. Third, we conduct comprehensive ablations on data recipes, training strategies, and design choices, together with extensive analysis on training dynamics, establishing a state-of-the-art baseline for “Thinking with Long Videos” with invaluable insights.\n\n## 2 Related Work\n\n## 3 VideoSIAH: A Fine-Grained Data Suite for Evidence-Sparse Long-Video Reasoning\n\nLong-video reasoning presents a fundamentally different challenge from previous video QA settings: LMMs must locate sparse, fine-grained, and causally decisive moments embedded within hours-long content. However, existing tool-augmented LMMs [39, 59] are mostly trained with coarse-grained and clip-level data. This mismatch leaves modern LMMs lacking the supervision needed to learn how temporal hypotheses are formed, verified, or revised—a critical yet underexplored capability for agentic long-video reasoning. Moreover, most existing video understanding benchmarks [9, 51, 48] only offer multiple-choice QAs, which can be solved without genuine temporal grounding and are vulnerable to dataset leakage or shortcut exploitation. Evidence and discussion can be found in Section 8. To fill this gap, we introduce VideoSIAH, a large-scale, diverse, and high-quality data suite that serves collectively as a training dataset capturing the reasoning dynamics required for segment-in-a-haystack question-answering, and a fine-grained evaluation benchmark, VideoSIAH-Eval, with human-in-the-loop validation for long-video open-ended question-answering.\n\n### 3.1 Data Pipeline\n\nAs illustrated in Figure 2, VideoSIAH is curated through a semi-automatic, human-in-the-loop pipeline that constructs temporally grounded reasoning traces aligned with human cognitive processes during evidence-sparse long-video reasoning. We begin with automatic scene detection on long videos and merge consecutive segments shorter than 10 seconds to obtain semantically stable units for downstream QA generation. For each segment, Qwen2.5-VL-72B [1] generates detailed descriptions capturing salient objects, spatial relations, and evolving events. These captions serve as the semantic basis for generating temporally grounded QA pairs. Initial QAs are created from the captions, covering temporal events, spatial layouts, motion, object attributes, and scene transitions, ensuring broad coverage at scale.\n\nTo ensure quality, we employ two filtering stages: (1) text-based QA filtering, which removes low-quality or ill-posed QAs (e.g., answer leakage) using linguistic heuristics and model agreement; and (2) multimodal QA filtering, where GLM-4.5V [12] verifies answer consistency against the video segment, eliminating hallucinated and visually unsupported claims. Annotator feedback further refines prompting rules for QA generation, filtering, and iMCoTT construction. This prompt-feedback refinement loop boosts reliability without heavy manual annotation, yielding high-fidelity, temporally grounded, and scalable data.\n\n### 3.2 Dataset Curation\n\n### 3.3 Dataset Statistics\n\nAs shown in Table 1, VideoSIAH comprises 228,835 SFT samples with normal (non-tool) CoT annotation, 19,161 tool-augmented SFT samples, and 17,020 instances used for RL and RFT. In the SFT split, the non-tool portion is dominated by long-video reasoning data [4], complemented by Video-R1-CoT [8] and a smaller amount of hard image-based CoT supervision. Detailed breakdown can be found in Section 9. The tool-augmented subset combines Gemini 2.5 Flash [5] distilled CoT traces (i.e., iMCoTT) for open-ended QA and Qwen2.5-VL-72B-Instruct [1] distilled traces for temporal grounding, providing joint supervision for tool usage and timestamp prediction. For the RL split, we filtered a high-quality subset of QA instances from Section 3.1. For RFT, we further select high-quality RL rollout traces for post-RL refinement, providing dense supervision that enables the policy to go well beyond the SFT-only performance ceiling. Together, these components yield a large-scale and diverse dataset spanning SFT, RL, and RFT, covering high-level reasoning, temporal grounding, and tool-integrated behaviors. For evaluation, we introduce the VideoSIAH-Eval benchmark, which consists of 244 videos and 1,280 carefully filtered QA pairs via human-in-the-loop validation. This benchmark is specifically designed for long-form video reasoning with an average video duration of approximately 1,688 seconds. The duration distribution is concentrated in the 15-30 minute range (71.84%), with the remaining 28.16% of videos being longer than 30 minutes.\n\n## 4 Training Strategy\n\nTo make full use of the VideoSIAH and elicit robust “Thinking with Long Videos” behaviors, LongVT adopts a three-stage training pipeline: (1) cold-start supervised fine-tuning, which teaches the base model to propose temporal windows, invoke video tools, and compose multimodal evidence; (2) agentic reinforcement learning, which optimizes a joint answer–temporal-grounding reward to refine tool-using rollouts; and (3) agentic reinforcement fine-tuning, which distills high-quality RL trajectories back into supervised data to stabilize these behaviors and consolidate long-horizon reasoning.\n\n### 4.1 Cold-Start Supervised Fine-Tuning\n\nAs shown in Figure 3-(b), our preliminary RL experiments using Qwen2.5-VL-7B [1] as the baseline model reveal that the model fails to improve during RL and ultimately collapses with continued training. This analysis of training dynamics indicates two major deficiencies of the base LMM: (1) the inability to correctly localize the relevant temporal window within long video, and (2) insufficient reasoning capability when integrating tool outputs. We also present a straightforward example in Figure 14 that illustrates the necessity of a cold-start SFT stage. These limitations highlight that the model’s native tool-calling abilities are too weak for direct RL training. Therefore, a cold-start stage is indispensable for establishing a reliable foundation. After applying SFT cold start, the model’s tool-calling activeness improves substantially and continues to increase steadily during RL, supported by results in Table 3.\n\n### 4.2 Agentic Reinforcement Learning\n\nIn this stage, we treat the model as a tool-using agent that decides when to inspect the video, how long to crop, and how to integrate the retrieved evidence into its reasoning. We employ GRPO [35] to achieve this objective. In addition, we introduce a three-part reward modeling that jointly optimizes answer accuracy, format compliance, and temporal grounding precision of sampled trajectories, namely, joint answer-temporal grounding reward. Prior work [8, 49] typically targets either answer correctness or time alignment in isolation. We take a further step toward unifying these signals within a single reward function for open-ended long-video QA. This coupling ties answer selection to where the evidence lies in time, improving final-answer correctness and promoting more effective tool use at inference, with more reliable and precise timestamp proposals.\n\nAnswer Accuracy. Let KK be the number of sampled rollouts in a group. For the kk-th rollout (k∈{1,…,K}k\\in\\{1,\\dots,K\\}), let a^(k)\\hat{a}^{(k)} denote its generated answer and let a⋆a^{\\star} denote the ground-truth answer. We employ LLM-as-a-Judge [55] to obtain a categorical verdict\n\nwhere F = fully consistent (semantically equivalent to a⋆a^{\\star}), P = partially consistent (contains some correct information but is incomplete or imprecise), and I = inconsistent (incorrect or contradictory).\n\nThe accuracy reward is then defined as the normalized score\n\nFormat Compliance. Let y(k)y^{(k)} denote the full textual output of the kk-th rollout and let 𝒮\\mathcal{S} be the required output schema. Define\n\nTemporal Overlap. Following previous temporal grounding work [8, 24], we use standard temporal IoU as the reward function for temporal localization. For a prediction [ts,te][t_{s},t_{e}] and ground truth [ts′,te′][t^{\\prime}_{s},t^{\\prime}_{e}],\n\nHence Rtime(k)=1\\textbf{R}_{\\text{time}}^{(k)}=1 only when the predicted span matches the ground-truth interval exactly, and Rtime(k)=0\\textbf{R}_{\\text{time}}^{(k)}=0 when there is no temporal overlap. This simple form proved sufficient to drive grounded cropping and tighter timestamp proposals during tool use.\n\nOverall Reward.\n\n### 4.3 Agentic Reinforcement Fine-tuning\n\nRecent work [40] argues that RFT has become a key ingredient for equipping large language models and their multimodal counterparts with strong reasoning capabilities, since it optimizes sequence-level rewards that directly reflect task success rather than token-level likelihood, and consistently improves performance across diverse modalities and tasks. Motivated by these findings, we further leverage RFT to stabilize model’s agentic behaviors and consolidate multimodal reasoning. Specifically, we select high-quality cases from early RL rollouts that exhibit both accurate temporal localization and coherent reasoning toward the final answer, and incorporate these trajectories back into the supervised fine-tuning curriculum as privileged and self-distilled demonstrations. Empirically (see Section 5.3), we find that learning from these in-distribution high-quality trajectories helps the model internalize robust grounding and tool-calling patterns complementary to large-scale agentic RL, effectively guiding optimization toward policies that better align answer accuracy, temporal grounding, and tool usage.\n\n### 4.4 Overall Framework\n\nAs visualized in Figure 4, LongVT operates in an iterative “hypothesis-verification” cycle. This behavioral capability is incentivized via cold-start SFT, enabling the model to skim global frames and proactively invoke the crop_video tool to resample fine-grained evidence. In cases where the initial retrieval (e.g., at T1T_{1}) proves insufficient, the model leverages learned self-correction to re-invoke the tool (e.g., at T2T_{2}) with refined parameters. Crucially, this entire decision-making trajectory is consolidated via agentic RL, which optimizes the policy against the joint answer-temporal grounding reward (Racc+Rformat+Rtime\\textbf{R}_{\\text{acc}}+\\textbf{R}_{\\text{format}}+\\textbf{R}_{\\text{time}}), enhancing the model’s generalization ability to further align with human-like verification strategies.\n\n## 5 Experiments\n\n### 5.1 Experimental Setup\n\nWe utilize Qwen2.5-VL-7B [1] as the baseline model in all experiments. We report the performance of three LongVT variants based on their training stages against Qwen2.5-VL-7B and other open-source video-centric LMMs including Video-R1-7B [8], VideoRFT-7B [46], and Video-Thinker-7B [47] plus proprietary LMMs such as GPT-4o [16] and Gemini 1.5 Pro [41]. Note that we do not include direct comparisons to the concurrent tool-augmented video-centric LMM [59], since its model checkpoints are not publicly available, which hinders fair and reproducible experiments. We evaluate all models on four long-video understanding and reasoning benchmarks, namely VideoMME [9], VideoMMMU [13], LVBench [48], and our self-curated VideoSIAH-Eval, leveraging a unified evaluation framework [60] for fair comparison. Results are reported under two frame-sampling regimes: Sparse Frame Sampling (64 uniformly sampled video frames) and Dense Frame Sampling (512 or 768 uniformly sampled frames; the better result among the two is reported). Reasoning Prompt indicates whether a standard reasoning-style prompt (✓) or a direct question-answering prompt (✗) is applied; Tool Calling denotes whether native tool calling is enabled (✓) or disabled (✗) in the prompt. More implementation details can be found in Section 12.\n\n### 5.2 Main Results\n\nAs shown in Table 2, our approach achieves a new state-of-the-art among open-source video-centric LMMs under both sparse and dense frame sampling settings. When evaluating at 64 frames, LongVT-7B-RL slightly surpasses the best existing open-source baseline. Under dense frame sampling, both LongVT-7B-RL and LongVT-7B-RFT yield more dominant performance, outperforming existing methods by a large margin. On the challenging VideoSIAH-Eval, which involves open-ended QAs that require the retrieval of fine-grained evidence from hours-long videos, LongVT-7B-RFT reaches 42.0, outperforming the second-best model by 6 points. This confirms that LongVT achieves stronger long-video reasoning and exhibits an emergent ability to invoke native tools for temporal localization. Notably, the gap between open-source and proprietary LMMs has narrowed substantially: LongVT’s best-performing checkpoint lies within roughly four points of GPT-4o on average, marking a significant step forward in long-video reasoning capability among open-source LMMs.\n\n### 5.3 Ablation Studies\n\nFine-grained reasoning data matters. As shown in Table 3, our self-curated training data plays a crucial role in shaping the model’s reasoning behavior when dealing with long-form videos. In the SFT stage, removing the self-curated iMCoTTs (SFT w/o self-curated iMCoTT) leads to consistent performance drop in long-form video understanding. In addition, when self-curated QAs are removed during RL (RL w/o self-curated QAs), model’s performance drops quickly on VideoSIAH-Eval, with lower answer accuracy, weaker temporal localization, and less systematic tool use, which can also be observed in Figure 3-(b).\n\nRecall encourages coverage; IoU demands precision. As shown in Figure 3-(a), using Recall as the reward function during RL presents a drawback: the policy can enlarge the predicted span to envelop the ground-truth interval, which monotonically raises the Recall-based score while ignoring boundary quality. This plateau in the curve of Recall Accuracy Score further validates our hypothesized reward hacking. Quantitatively, in the reward-choice rows of Table 3, IoU-rewarded training outperforms Recall on the temporal grounding benchmark [10], while Recall is only marginally above the RL w/o Decoupled Reward variant, pointing to IoU’s tighter handling of boundary agreement. Optimizing with IoU provides smooth shaping over overlap and implicitly penalizes span inflation via the union term, yielding better-aligned boundaries and more disciplined tool use.\n\nIs tool reward really necessary? As shown in Figure 3-(b), the Qwen2.5-VL-7B baseline collapses to near-zero tool calls after training in both configurations (w/ and w/o tool reward), indicating that the model does not internalize the tool’s function. After performing cold-start SFT to obtain LongVT-7B-SFT, tool-call frequency rises during training under both configurations and accuracy improves in tandem. Hence, the tool reward is not required for basic competence: once SFT grounds the tool’s semantics, the model learns when to invoke the tool and when to abstain. Moreover, introducing the tool reward brings little benefit. In the later training stage, the configuration without the tool reward even exhibits slightly higher tool-use frequency, indicating that the binary bonus does not encourage usage and may suppress exploration, while accuracy remains essentially unchanged. Given these observations, we discard the tool reward in our final recipe and rely on the standard accuracy, format, and decoupled IoU reward modeling.\n\nSFT builds competence; RL optimizes decisions; RFT stabilizes behaviors. We ablate each training stage individually and in combination, finding that strong performance emerges only with the full three-stage pipeline. As shown in Figure 3-(b), removing SFT leaves the model with poor tool-use ability: it cannot reliably invoke crop_video tool or integrate cropped evidence into its reasoning. Consistently, the RL-only variant achieves the lowest scores on all four benchmarks (Table 3) and exhibits behavioral inconsistencies during training—often following surface instructions and becoming confused by the returned crop rather than using it as supporting evidence.\n\nSFT teaches the intended tool-use paradigm—selecting temporal windows, inspecting their content, and incorporating the resulting evidence into the final answer. However, SFT remains imitation-driven [22]: it fits demonstrated formats, suffers from exposure bias, and fails to generalize under distribution shift. On long-video QA, SFT alone yields only modest gains. We therefore introduce RL with a temporal-grounding reward, optimized via GRPO. RL enables the policy to learn when to inspect, how long to crop, and how to integrate retrieved evidence. This stage pushes performance beyond the supervised ceiling on held-out videos and unseen question templates (Table 3), aligning with prior findings that GRPO improves reasoning and generalization [11].\n\nFinally, RFT distills high-reward trajectories back into the supervised corpus, providing additional performance gains. On VideoSIAH-Eval, it surpasses the RL-only plateau by a substantial margin and yields our best-performing model, while still delivering consistent improvements on other benchmarks. This demonstrates that consolidating successful rollouts is essential for fully realizing the benefits of temporal-grounding feedback.\n\n## 6 Conclusion\n\nIn this work, we present LongVT, an end-to-end agentic framework that enables LMMs to reliably reason over long videos. By interleaving multimodal tool-augmented CoT with on-demand temporal inspection, LongVT transforms long-video understanding from passive frame consumption into active, evidence-seeking reasoning. Supported by self-curated VideoSIAH, a large-scale, fine-grained data suite built specifically for evidence-sparse long-video reasoning tasks, our proposed three-stage training pipeline yields substantial and consistent improvements compared to existing strong baselines.\n\n## 7 LongVT Performs Human-Aligned Thinking like Leading Proprietary LMMs\n\nThe core philosophy of our proposed interleaved Multimodal Chain-of-Tool-Thought (iMCoTT) entails a “global-to-local” thinking pattern: the model first performs a coarse skim to formulate a hypothesis, and subsequently invokes the native crop_video() tool to inspect specific temporal windows for fine-grained verification. While this design was inspired by human intuition, we observe a striking convergence between our approach and the reasoning behaviors emerging in state-of-the-art proprietary LMMs when they are prompted to perform fine-grained analysis.\n\nTo validate this alignment, we queried two leading models, Gemini 2.5 Pro [5] and GPT-5 Thinking [42], regarding their optimal strategies for analyzing fine-grained video details. As illustrated in Figure 5(a), Gemini 2.5 Pro explicitly advocates for a two-stage process: a “Step 1: Coarse Scan” to efficiently locate the general event (e.g., searching for scoreboard changes or crowd reactions), followed by a “Step 2: Fine Scan” to isolate the exact moment and verify details (e.g., scrubbing back 30-60 seconds). This directly mirrors the workflow of our proposed LongVT, where the “Coarse Scan” corresponds to our global preview stage, and the “Fine Scan” is functionally identical to our agentic crop_video() tool calling. Similarly, Figure 5(b) demonstrates that the GPT-series model adopts a hierarchical “Coarse→\\rightarrowMedium→\\rightarrowFine” search strategy. These examples confirm that the “Thinking with Long Videos” paradigm we propose in this work is a natural and necessary evolution for reliable long-form video reasoning, given that such human-aligned reasoning capabilities are currently exclusive to top-tier proprietary models.\n\n## 8 What Motivates VideoSIAH? Unveiling the Data Contamination in Qwen-VL Series\n\nWith the rapid advancements of LMMs, model performance on various benchmarks has steadily improved. However, the “black-box” nature of training data raises a critical question: Do these improvements reflect genuine reasoning capability, or are they partly due to the model memorizing the benchmark samples? To investigate this, we conduct a rigorous contamination study on the Qwen-VL series [1, 44] across two probing settings: (1) No Visual, where we feed the text prompt without video frames to test for direct memorization; (2) Rearranged Choices, where we randomize the mapping between option labels and their textual content (e.g., assigning the original answer A to B) for multiple-choice questions (MCQs) to detect label memorization.\n\nOur experimental results reveal significant vulnerabilities in existing benchmarks and highlight the necessity of our proposed VideoSIAH-Eval: Observation 1: “No Visual” Performance Indicates Severe Leakage in Existing Benchmarks. As shown in Table 4, both Qwen2.5-VL and Qwen3-VL achieve remarkably high scores on VideoMME and VideoMMMU even without seeing any video frames. Notably, for VideoMME, we specifically evaluate without subtitles to ensure there is no textual leakage, yet Qwen2.5-VL still achieves 40.1%, far exceeding random guessing (∼\\sim25%) for such four-option MCQs. Similar patterns of potential data leakage are observed on VideoMMMU. While the ‘No Visual’ scores of 38.3% (Comprehension) and 39.3% (Perception) might appear similar to VideoMME, they are statistically more improbable given the dataset composition. Our statistics reveal that these subsets are overwhelmingly dominated by MCQs with 10 options (e.g., 286 out of 300 for Comprehension and 279 out of 300 for Perception), implying a random guessing baseline of only ∼10​–​16%\\sim 10\\text{--}16\\%. The fact that the model achieves scores significantly above this threshold absent any visual context indicates a high probability of benchmark memorization. In contrast, performance on VideoSIAH-Eval drops significantly in the “No Visual” setting. Specifically, Qwen3-VL collapses to a score of 0.00. Upon manual inspection, we find that without visual grounding, the model generates repetitive code or refusal messages, which is the expected behavior for a clean and non-contaminated benchmark. Observation 2: “Rearranged Choices” Reveals Overfitting to Option Patterns. For MCQ-based benchmarks, we observe distinct performance drops when answer choices are rearranged. For instance, Qwen2.5-VL drops from 64.3 to 56.0 on VideoMME. This indicates that they heavily rely on memorizing specific option mappings (e.g., the answer to this question is usually “A”) rather than understanding the content. Since VideoSIAH-Eval utilizes a fully open-ended QA format, it is inherently immune to this type of option hacking, providing a more robust assessment of the model’s capabilities.\n\nThese findings confirm that existing benchmarks are compromised by data contamination (high “No Visual” scores), option bias (sensitive to “Rearranged Choices”). This motivates the introduction of VideoSIAH-Eval, which ensures: (1) Zero leakage as verified by the 0.00 blind score, and (2) Immunity to option bias via open-ended QA format.\n\n## 9 Additional VideoSIAH Details\n\n## 10 Additional Methodological Details\n\n## 11 Reflection Trajectory: From Verbose Self-Correction to Internalized Tool Usage\n\nWe visualize the evolution of the model’s internal thought process in Figure 7 (left). Echoing the training dynamics observed in DeepEyes [63], the trajectory of reflection token proportion discloses a distinct three-phase evolution from exploratory correction to efficient tool exploitation: (1) Verbose Self-Correction (Steps 0∼\\sim50): Initially, reflection density remains high. Due to insufficient localization accuracy, the model relies on extensive self-correction and iterative verbal reasoning to compensate for sub-optimal tool usage. (2) Efficiency Optimization (Steps 50∼\\sim80): A significant drop follows as the policy matures. As the model’s intrinsic grounding capability improves, it identifies prolonged reflection to be redundant, autonomously pruning unnecessary linguistic fillers to maximize reward efficiency. (3) Internalized Proficiency (After 80 Steps): The curve stabilizes at a concise baseline, indicating a shift toward selective reasoning—the model invokes explicit reflection only when resolving ambiguity, having internalized the core semantics of tool interaction. Complementing this, the word cloud (right) confirms that the remaining reflection tokens are semantically grounded (e.g., “segment,” “confirm”), serving as functional anchors for temporal reasoning rather than generating generic linguistic fillers.\n\n## 12 Additional Implementation Details\n\nThe full set of experimental hyperparameters is detailed in Table 6.\n\n## 13 Inference Efficiency Analysis\n\n## 14 Examples\n\n## 15 Failure Case Analysis\n\nTo further illustrate the instability of the RL-only variant discussed in Section 5.3 of the main paper, we present a representative failure case. As shown in Figure 14, the model correctly recognizes the need to invoke a tool to inspect the glass coffee table. However, after receiving the resampled video frames, it fails to integrate the returned evidence to answer the specific question (“which video-game device”). Instead of performing the required reasoning, the model becomes confused by the context shift and reverts to generic video captioning, merely restating superficial scene descriptions. This behavior underscores the importance of the SFT cold start in teaching the model the intended semantics of tool usage, enabling it to correctly interpret tool outputs and incorporate them into its reasoning process.\n\n## 16 Limitation and Future Direction\n\nWhile our efficiency analysis in Section 13 confirms that multi-turn tool interactions do not impose significant latency penalties, the memory footprint of such recursive reasoning remains a bottleneck. The single-agent architecture of LongVT is constrained by the inherent context window of the underlying LMM: as the number of interaction turns increases—driven by the need for multiple crop_video calls to inspect ultra-long or infinite video streams—the accumulation of history tokens (including dense visual features returned by tools) can rapidly exhaust the context budget. This accumulation poses a risk of Out-of-Memory errors during training and imposing performance degradation due to truncation.\n\nA promising future direction to resolve this limitation lies in multi-agent collaboration. Inspired by recent advancements in multi-agent reinforcement learning such as MATPO [32], we envision a hierarchical framework where context management is decoupled from reasoning. In this future paradigm, a “Manager Agent” could orchestrate high-level planning and dispatch sub-tasks to specialized “Worker Agents,” each responsible for inspecting distinct temporal segments or executing specific tool calls. By enabling workers to summarize their observations into concise natural language updates for the manager, such a system could theoretically support infinite-horizon reasoning loops without succumbing to context overflow. We leave the exploration of this scalable, divide-and-conquer architecture to future work.\n\n## 17 Broader Impact\n\nLongVT advances the field of long-video understanding by introducing an agentic framework capable of proactive evidence seeking and self-correction. By enabling LMMs to dynamically inspect and re-examine video segments, this work addresses critical reliability issues—such as hallucinations and temporal misalignment that hinder the deployment of AI in high-stakes domains. As video-based AI systems become integral to applications ranging from automated surveillance and content moderation to educational analytics and assistive technologies for the visually impaired, the improved factual grounding and transparency offered by LongVT support safer and more trustworthy interactions.\n\n## 18 Ethical Considerations\n",
+    "extracted_at": "2025-12-26 16:40:22.097933"
+  },
+  "classification": {
+    "paper_id": "2511.20785",
+    "category": "generative_models",
+    "category_name": "Generative Models",
+    "category_name_zh": "生成模型",
+    "confidence": 0.0,
+    "reasoning": "The paper introduces an end-to-end agentic framework for incentivizing 'Thinking with Long Videos' using multimodal data, directly addressing generative models' capabilities in handling complex multimodal inputs. The focus on multimodal interactions aligns with the broader category of generative models.",
+    "raw_response": "{\n  \"category\": \"generative_models\",\n  \"confidence\": 0.0,\n  \"reasoning\": \"The paper introduces an end-to-end agentic framework for incentivizing 'Thinking with Long Videos' using multimodal data, directly addressing generative models' capabilities in handling complex multimodal inputs. The focus on multimodal interactions aligns with the broader category of generative models.\"\n}",
+    "generated_at": "2025-12-26 16:45:50.303897"
+  },
+  "keywords": {
+    "paper_id": "2511.20785",
+    "keywords": [
+      "LongVT",
+      "Native Tool Calling",
+      "Multimodal",
+      "Agentic Framework",
+      "Chain-of-Thought",
+      "Long-form videos",
+      "Hallucinations",
+      "End-to-end",
+      "Multimodal Ch",
+      "Thinking with Long Videos"
+    ],
+    "keywords_zh": [
+      "长视频框架",
+      "长视频",
+      "多模态",
+      "多模态处理",
+      "长视频推理",
+      "多模态模型",
+      "多模态视频",
+      "多模态推理",
+      "多模态能力",
+      "长视频思考"
+    ],
+    "raw_response": "{\n  \"keywords\": [\n    \"LongVT\",\n    \"Native Tool Calling\",\n    \"Multimodal\",\n    \"Agentic Framework\",\n    \"Chain-of-Thought\",\n    \"Long-form videos\",\n    \"Hallucinations\",\n    \"End-to-end\",\n    \"Multimodal Ch\",\n    \"Thinking with Long Videos\"\n  ],\n  \"keywords_zh\": [\n    \"长视频框架\",\n    \"长视频\",\n    \"多模态\",\n    \"多模态处理\",\n    \"长视频推理\",\n    \"多模态模型\",\n    \"多模态视频\",\n    \"多模态推理\",\n    \"多模态能力\",\n    \"长视频思考\"\n  ]\n}",
+    "generated_at": "2025-12-26 16:45:54.218936"
+  },
+  "labels": {
+    "paper_id": "2511.20785",
+    "labels": [
+      "AI and multimodal reasoning",
+      "Multimodal Ch",
+      "Native Tool Calling",
+      "Long-form video reasoning",
+      "Hallucinations"
+    ],
+    "labels_zh": [
+      "人工智能与多模态推理",
+      "多模态推理",
+      "多模态工具调用",
+      "长视频推理",
+      "假信息"
+    ],
+    "raw_response": "{\n  \"labels\": [\n    \"AI and multimodal reasoning\",\n    \"Multimodal Ch\",\n    \"Native Tool Calling\",\n    \"Long-form video reasoning\",\n    \"Hallucinations\"\n  ],\n  \"labels_zh\": [\n    \"人工智能与多模态推理\",\n    \"多模态推理\",\n    \"多模态工具调用\",\n    \"长视频推理\",\n    \"假信息\"\n  ]\n}",
+    "generated_at": "2025-12-26 16:45:57.131340"
+  },
+  "comments": null,
+  "notion_page_id": null,
+  "notion_synced_at": null,
+  "created_at": "2025-12-26 18:18:04.139611",
+  "updated_at": "2025-12-26 18:18:04.139616"
+}

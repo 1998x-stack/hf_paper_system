@@ -1,0 +1,12 @@
+{
+  "status": "success",
+  "duration_seconds": 1368.090082,
+  "stats": {
+    "total_papers": 49,
+    "ar5iv_extracted": 49,
+    "classified": 4,
+    "notion_synced": 49,
+    "errors": 0
+  },
+  "errors": []
+}

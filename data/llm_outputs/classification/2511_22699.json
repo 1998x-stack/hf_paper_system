@@ -1,0 +1,10 @@
+{
+  "paper_id": "2511.22699",
+  "category": "generative_models",
+  "category_name": "Generative Models",
+  "category_name_zh": "生成模型",
+  "confidence": 0.0,
+  "reasoning": "The paper discusses an efficient image generation foundation model, specifically Z-Image, which leverages a diffusion transformer. This aligns with the broader field of generative models, as it focuses on image generation rather than reinforcement learning or robotics. The title and abstract directly reference generative models, making this the most appropriate classification.",
+  "raw_response": "{\n  \"category\": \"generative_models\",\n  \"confidence\": 0.0,\n  \"reasoning\": \"The paper discusses an efficient image generation foundation model, specifically Z-Image, which leverages a diffusion transformer. This aligns with the broader field of generative models, as it focuses on image generation rather than reinforcement learning or robotics. The title and abstract directly reference generative models, making this the most appropriate classification.\"\n}",
+  "generated_at": "2025-12-26 16:40:54.002125"
+}

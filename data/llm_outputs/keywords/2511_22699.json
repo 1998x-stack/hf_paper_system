@@ -1,0 +1,28 @@
+{
+  "paper_id": "2511.22699",
+  "keywords": [
+    "diffusion transformer",
+    "single-stream diffusion",
+    "image generation foundation model",
+    "large parameter scale",
+    "open-source image generation models",
+    "proprietary image generation systems",
+    "efficiency",
+    "high-performance image generation",
+    "diffusion model",
+    "parameter count"
+  ],
+  "keywords_zh": [
+    "扩散器",
+    "单流扩散",
+    "图像生成基础模型",
+    "大规模参数",
+    "开源图像生成模型",
+    "专有图像生成系统",
+    "高效",
+    "高性能图像生成",
+    "扩散模型"
+  ],
+  "raw_response": "{\n  \"keywords\": [\n    \"diffusion transformer\",\n    \"single-stream diffusion\",\n    \"image generation foundation model\",\n    \"large parameter scale\",\n    \"open-source image generation models\",\n    \"proprietary image generation systems\",\n    \"efficiency\",\n    \"high-performance image generation\",\n    \"diffusion model\",\n    \"parameter count\"\n  ],\n  \"keywords_zh\": [\n    \"扩散器\",\n    \"单流扩散\",\n    \"图像生成基础模型\",\n    \"大规模参数\",\n    \"开源图像生成模型\",\n    \"专有图像生成系统\",\n    \"高效\",\n    \"高性能图像生成\",\n    \"扩散模型\"\n  ]\n}",
+  "generated_at": "2025-12-26 16:40:56.897813"
+}

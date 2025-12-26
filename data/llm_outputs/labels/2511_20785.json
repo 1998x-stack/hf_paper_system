@@ -1,0 +1,19 @@
+{
+  "paper_id": "2511.20785",
+  "labels": [
+    "AI and multimodal reasoning",
+    "Multimodal Ch",
+    "Native Tool Calling",
+    "Long-form video reasoning",
+    "Hallucinations"
+  ],
+  "labels_zh": [
+    "人工智能与多模态推理",
+    "多模态推理",
+    "多模态工具调用",
+    "长视频推理",
+    "假信息"
+  ],
+  "raw_response": "{\n  \"labels\": [\n    \"AI and multimodal reasoning\",\n    \"Multimodal Ch\",\n    \"Native Tool Calling\",\n    \"Long-form video reasoning\",\n    \"Hallucinations\"\n  ],\n  \"labels_zh\": [\n    \"人工智能与多模态推理\",\n    \"多模态推理\",\n    \"多模态工具调用\",\n    \"长视频推理\",\n    \"假信息\"\n  ]\n}",
+  "generated_at": "2025-12-26 16:45:57.131340"
+}

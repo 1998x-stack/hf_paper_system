@@ -1,0 +1,10 @@
+{
+  "paper_id": "2511.21689",
+  "category": "generative_models",
+  "category_name": "Generative Models",
+  "category_name_zh": "生成模型",
+  "confidence": 0.999,
+  "reasoning": "The paper discusses training small orchestrators that coordinate models and tools, emphasizing efficiency and intelligence. This aligns with generative models as they focus on data generation and model orchestration.",
+  "raw_response": "{\n  \"category\": \"generative_models\",\n  \"confidence\": 0.999,\n  \"reasoning\": \"The paper discusses training small orchestrators that coordinate models and tools, emphasizing efficiency and intelligence. This aligns with generative models as they focus on data generation and model orchestration.\"\n}",
+  "generated_at": "2025-12-26 18:18:08.137472"
+}

@@ -1,0 +1,19 @@
+{
+  "paper_id": "2511.22699",
+  "labels": [
+    "AI",
+    "image generation",
+    "diffusion model",
+    "open-source image generation models",
+    "efficient image generation foundation model"
+  ],
+  "labels_zh": [
+    "人工智能",
+    "图像生成",
+    "扩散模型",
+    "开源图像生成模型",
+    "高效图像生成基础模型"
+  ],
+  "raw_response": "{\n  \"labels\": [\"AI\", \"image generation\", \"diffusion model\", \"open-source image generation models\", \"efficient image generation foundation model\"],\n  \"labels_zh\": [\"人工智能\", \"图像生成\", \"扩散模型\", \"开源图像生成模型\", \"高效图像生成基础模型\"]\n}",
+  "generated_at": "2025-12-26 16:40:58.954475"
+}
