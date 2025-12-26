@@ -63,7 +63,7 @@ class OllamaClient:
         prompt: str,
         system: Optional[str] = None,
         temperature: float = 0.3,
-        max_tokens: int = 2048,
+        max_tokens: int = 10000,
     ) -> Optional[str]:
         """
         生成文本
@@ -477,7 +477,7 @@ Respond with ONLY a JSON object:
             prompt=prompt,
             system=system,
             temperature=0.4,
-            max_tokens=512,
+            max_tokens=10000,
         )
         
         if not response:

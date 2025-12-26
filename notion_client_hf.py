@@ -851,6 +851,9 @@ class NotionPaperClient:
         results = {"synced": [], "failed": [], "skipped": []}
         
         for i, paper in enumerate(papers):
+            if not paper.abstract:
+                results["failed"].append(paper.paper_id)
+                continue
             logger.info(f"同步进度: {i+1}/{len(papers)}")
             
             try:
