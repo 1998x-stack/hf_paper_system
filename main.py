@@ -41,7 +41,7 @@ from utils import (
 from scraper_hf import HFPapersScraper, load_existing_papers
 from scraper_ar5iv import Ar5ivExtractor
 from llm_processor import LLMProcessor
-from notion_client import NotionPaperClient
+from notion_client_hf import NotionPaperClient
 
 
 class PaperPipeline:

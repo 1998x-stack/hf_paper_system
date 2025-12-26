@@ -564,7 +564,7 @@ async def main():
     )
     
     # 测试论文ID
-    test_ids = ["2312.02139", "2401.02385"]
+    test_ids = ["1706.03762", "1810.04805"]
     
     contents = await extractor.extract_papers(test_ids)
     

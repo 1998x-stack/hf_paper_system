@@ -17,6 +17,7 @@ class PaperMetrics(BaseModel):
     upvotes: int = Field(default=0, description="点赞数")
     comments: int = Field(default=0, description="评论数")
     downloads: Optional[int] = Field(default=None, description="下载数")
+    github_stars: Optional[int] = Field(default=None, description="GitHub星标数")
 
 
 class Organization(BaseModel):
