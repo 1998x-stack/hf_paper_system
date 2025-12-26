@@ -1,0 +1,5 @@
+2025-12-26 16:06:41 | INFO     | utils:setup_logging:58 | 日志系统初始化完成，文件: data/logs/hf_papers_20251226_160641.log
+2025-12-26 16:06:41 | INFO     | __main__:main:437 | 开始HuggingFace Papers爬取测试
+2025-12-26 16:06:41 | INFO     | __main__:scrape_range:358 | 准备爬取 1 个月份: 2025-12 到 2025-12
+2025-12-26 16:06:41 | INFO     | __main__:scrape_month:306 | 开始爬取 2025-12: https://huggingface.co/papers/month/2025-12
+2025-12-26 16:07:12 | WARNING  | __main__:_fetch_page:110 | 请求超时: https://huggingface.co/papers/month/2025-12

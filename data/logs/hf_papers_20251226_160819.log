@@ -1,0 +1,30 @@
+2025-12-26 16:08:19 | INFO     | utils:setup_logging:58 | 日志系统初始化完成，文件: data/logs/hf_papers_20251226_160819.log
+2025-12-26 16:08:19 | INFO     | __main__:main:559 | 开始ar5iv提取测试
+2025-12-26 16:08:19 | INFO     | __main__:extract_papers:488 | 开始批量提取 2 篇论文
+2025-12-26 16:08:19 | INFO     | __main__:extract_paper:453 | 提取论文: 2312.02139
+2025-12-26 16:08:19 | INFO     | __main__:extract_paper:453 | 提取论文: 2401.02385
+2025-12-26 16:08:19 | DEBUG    | utils:save_json:172 | 保存JSON: data/raw/ar5iv_2401_02385.json
+2025-12-26 16:08:20 | DEBUG    | utils:save_json:172 | 保存JSON: data/raw/ar5iv_2312_02139.json
+2025-12-26 16:08:22 | INFO     | __main__:extract_papers:509 | 提取完成: 成功 2, 失败 0
+2025-12-26 16:08:22 | INFO     | __main__:main:572 | 
+==================================================
+2025-12-26 16:08:22 | INFO     | __main__:main:573 | 标题: DiffiT: Diffusion Vision Transformers for Image Generation
+2025-12-26 16:08:22 | INFO     | __main__:main:574 | 作者: Ali Hatamizadeh, Jiaming Song, Guilin Liu, Jan Kautz, Arash Vahdat NVIDIA {ahatamizadeh, jiamings, guilinl, jkautz, avahdat}@nvidia.com...
+2025-12-26 16:08:22 | INFO     | __main__:main:575 | 摘要: Diffusion models with their powerful expressivity and high sample quality have enabled many new applications and use-cases in various domains. For sample generation, these models rely on a denoisin...
+2025-12-26 16:08:22 | INFO     | __main__:main:576 | 章节: 10
+2025-12-26 16:08:22 | INFO     | __main__:main:577 | 图片: 17
+2025-12-26 16:08:22 | INFO     | __main__:main:578 | 表格: 21
+2025-12-26 16:08:22 | INFO     | __main__:main:579 | 公式: 16
+2025-12-26 16:08:22 | INFO     | __main__:main:580 | 参考文献: 84
+2025-12-26 16:08:22 | INFO     | __main__:main:572 | 
+==================================================
+2025-12-26 16:08:22 | INFO     | __main__:main:573 | 标题: TinyLlama: An Open-Source Small Language Model
+2025-12-26 16:08:22 | INFO     | __main__:main:574 | 作者: Peiyuan Zhang∗ Guangtao Zeng∗ Tianduo Wang Wei Lu StatNLP Research Group Singapore University of Technology and Design {peiyuan_zhang, tianduo_wang, luwei}@sutd.edu.sg guangtao_zeng@mymail.sutd.edu.sg...
+2025-12-26 16:08:22 | INFO     | __main__:main:575 | 摘要: We present TinyLlama, a compact 1.1B language model pretrained on around 1 trillion tokens for approximately 3 epochs. Building on the architecture and tokenizer of Llama 2 (Touvron et al., 2023b, ...
+2025-12-26 16:08:22 | INFO     | __main__:main:576 | 章节: 5
+2025-12-26 16:08:22 | INFO     | __main__:main:577 | 图片: 3
+2025-12-26 16:08:22 | INFO     | __main__:main:578 | 表格: 3
+2025-12-26 16:08:22 | INFO     | __main__:main:579 | 公式: 0
+2025-12-26 16:08:22 | INFO     | __main__:main:580 | 参考文献: 38
+2025-12-26 16:08:22 | INFO     | __main__:main:582 | 
+统计: {'success': 2, 'failure': 0, 'total': 2}
